@@ -21,6 +21,10 @@ from cudaskfem.assembly.basis import AbstractBasis
 from cudaskfem.element import ElementVector
 from cudaskfem.generic_utils import deprecated
 
+import cupy as cp
+from cupyx.scipy.sparse import csr_matrix as cpx_csr
+from cupyx.scipy.sparse.linalg import cg, gmres, cgs, minres, LinearOperator
+
 
 logger = logging.getLogger(__name__)
 
@@ -107,33 +111,55 @@ def solver_eigen_scipy_sym(**kwargs) -> EigenSolver:
 
     return solver
 
+def jacobi_preconditioner(A_gpu):
+    D_inv = 1.0 / A_gpu.diagonal()
 
-def solver_direct_scipy(method='cg', tol=1e-5, maxiter=None, **kwargs):  
-    import cupy as cp
-    from cupyx.scipy.sparse import csr_matrix as cpx_csr
-    from cupyx.scipy.sparse.linalg import cg
-    from cupyx.scipy.sparse.linalg import cg, gmres, cgs, minres
+    def apply(r):
+        return D_inv * r
 
-    solvers = {'cg': cg, 'gmres': gmres, 'cgs': cgs, 'minres': minres}
+    n = A_gpu.shape[0]
+
+    return LinearOperator(
+        shape=(n, n),
+        matvec=apply,
+        dtype=cp.float64
+    )
+
+def solver_direct_scipy(method='cg', tol=1e-3, maxiter=None):
+    solvers = {
+        'cg': cg,
+        'gmres': gmres,
+        'cgs': cgs,
+        'minres': minres
+    }
+
     solve_func = solvers[method]
-    def solver(A, b, **solve_time_kwargs):
-        kwargs.update(solve_time_kwargs)
-        
+
+    def solver(A, b):
         A_gpu = cpx_csr(A, dtype=cp.float64)
         b_gpu = cp.asarray(b, dtype=cp.float64)
-        
-        x_gpu, info = solve_func(A_gpu, b_gpu, tol=tol, maxiter=maxiter)
-        
+
+        # Precondicionador Jacobi
+        M = jacobi_preconditioner(A_gpu)
+
+        x_gpu, info = solve_func(
+            A_gpu,
+            b_gpu,
+            M=M,
+            tol=tol,
+            maxiter=maxiter
+        )
+
         if info != 0:
             print(f"Warning: {method} didn't converge (info={info})")
-        
+
         x = cp.asnumpy(x_gpu)
-        
+
         del A_gpu, b_gpu, x_gpu
         cp.get_default_memory_pool().free_all_blocks()
-        
+
         return x
-        
+
     return solver
 
 
