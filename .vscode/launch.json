@@ -16,10 +16,10 @@
                 "HALF_PRECISION": "0",
                 "TOLERANCE": "1e-10"
             },
-            "args":[
-                ">",
-                "log2.log"
-            ]
+            // "args":[
+            //     ">",
+            //     "log2.log"
+            // ]
         }
     ]
 }

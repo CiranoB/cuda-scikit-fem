@@ -60,6 +60,7 @@ def build_pc_ilu(A: spmatrix,
                  drop_tol: Optional[float] = 1e-4,
                  fill_factor: Optional[float] = 20) -> spl.LinearOperator:
     """Incomplete LU preconditioner."""
+    print("A size: ", A.size)
     P = spl.spilu(A.tocsc(), drop_tol=drop_tol, fill_factor=fill_factor)
     M = spl.LinearOperator(A.shape, matvec=P.solve)
     return M
