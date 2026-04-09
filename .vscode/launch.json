@@ -1,0 +1,25 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "env":{
+                "PYTHONPATH": "${workspaceFolder}",
+                "REFINED_TIMES": "3",
+                "HALF_PRECISION": "0",
+                "TOLERANCE": "1e-10"
+            },
+            "args":[
+                ">",
+                "log2.log"
+            ]
+        }
+    ]
+}

@@ -3,13 +3,25 @@ SciPy linear solvers."""
 
 import sys
 import logging
+import time
 from typing import Optional, Union, Tuple, Callable, Dict
 
 import numpy as np
+from cudaskfem.sparse_solvers import is_cg_compatible, is_symmetric, load_to_gpu, read_from_gpu, solve_cg_cpu, solve_cg_with_jacobi_preconditioner, solve_cg_with_ilu_preconditioner, solve_cg_without_jacobi_preconditioner, solve_spsolve_cpu, solve_superlu_gpu
 import scipy.sparse as sp
 import scipy.sparse.csgraph as spg
 import scipy.sparse.linalg as spl
+from scipy.sparse.linalg import spsolve
 from numpy import ndarray
+
+import os
+
+### CUDA ###
+import cupy as cp
+from cupyx.scipy.sparse.linalg import LinearOperator
+from cupyx.scipy.sparse import csr_matrix as cpx_csr
+from cupyx.scipy.sparse.linalg import cg, gmres, cgs, minres
+### CUDA ###
 
 if "pyodide" in sys.modules:
     from scipy.sparse.base import spmatrix
@@ -107,31 +119,63 @@ def solver_eigen_scipy_sym(**kwargs) -> EigenSolver:
 
     return solver
 
+TOLERANCE: float = float(os.getenv("TOLERANCE", 1e-5))
 
-def solver_direct_scipy(method='cg', tol=1e-5, maxiter=None, **kwargs):  
-    import cupy as cp
-    from cupyx.scipy.sparse import csr_matrix as cpx_csr
-    from cupyx.scipy.sparse.linalg import cg
-    from cupyx.scipy.sparse.linalg import cg, gmres, cgs, minres
+def solve_multiple_solver(A, b, x):
+    # CPU CG solver
+    x_cg_cpu = solve_cg_cpu(A, b, TOLERANCE)
 
-    solvers = {'cg': cg, 'gmres': gmres, 'cgs': cgs, 'minres': minres}
-    solve_func = solvers[method]
+    # Load to GPU
+    A_gpu, b_gpu = load_to_gpu(A,b)
+
+    # Solvers
+    # x_gpu = solve_superlu_gpu(A_gpu, b_gpu)
+    # x_superlu = read_from_gpu(x_gpu)
+    # cp.get_default_memory_pool().free_all_blocks()
+    # del x_gpu
+
+    x_gpu = solve_cg_without_jacobi_preconditioner(A_gpu, b_gpu, TOLERANCE)
+    x_cg_no_prec = read_from_gpu(x_gpu)
+    cp.get_default_memory_pool().free_all_blocks()
+    del x_gpu
+
+    x_gpu = solve_cg_with_jacobi_preconditioner(A_gpu, b_gpu, TOLERANCE)
+    x_cg_jacobi = read_from_gpu(x_gpu)
+    cp.get_default_memory_pool().free_all_blocks()
+    del x_gpu
+
+
+    # Compare results
+    def compare(name, x_gpu_result, x_cpu):
+        diff = np.abs(x_gpu_result - x_cpu)
+        rel_err = diff / (np.abs(x_cpu) + 1e-12)
+        print(f"[{name}] max abs diff: {diff.max():.6e}, "
+            f"mean abs diff: {diff.mean():.6e}, "
+            f"max rel error: {rel_err.max():.6e}")
+
+    # compare("SuperLU GPU vs CPU spsolve", x_superlu, x)
+    compare("CG CPU vs CPU spsolve", x_cg_cpu, x)
+    compare("CG (no precond) GPU vs CPU spsolve", x_cg_no_prec, x)
+    compare("CG (Jacobi precond) GPU vs CPU spsolve", x_cg_jacobi, x)
+            
+    # Cleanup
+    del A_gpu, b_gpu
+    cp.get_default_memory_pool().free_all_blocks()
+
+
+def solver_direct_scipy(**kwargs):  
     def solver(A, b, **solve_time_kwargs):
-        kwargs.update(solve_time_kwargs)
+        print("A size: ", A.size)
+        local_kwargs = kwargs.copy()
+        local_kwargs.update(solve_time_kwargs)
         
-        A_gpu = cpx_csr(A, dtype=cp.float64)
-        b_gpu = cp.asarray(b, dtype=cp.float64)
+        x = solve_spsolve_cpu(A, b)
+        # print("Simetrica: ", is_symmetric(A))
+        # print("Aplicavel ao CG: ", is_cg_compatible(A))
+
+        solve_multiple_solver(A, b, x)
         
-        x_gpu, info = solve_func(A_gpu, b_gpu, tol=tol, maxiter=maxiter)
-        
-        if info != 0:
-            print(f"Warning: {method} didn't converge (info={info})")
-        
-        x = cp.asnumpy(x_gpu)
-        
-        del A_gpu, b_gpu, x_gpu
-        cp.get_default_memory_pool().free_all_blocks()
-        
+
         return x
         
     return solver

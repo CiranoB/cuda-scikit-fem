@@ -1,3 +1,8 @@
 [build-system]
 requires = ["setuptools>=42", "wheel", "cupy"]
 build-backend = "setuptools.build_meta"
+
+[dependency-groups]
+dev = [
+    "cupy>=14.0.1",
+]
