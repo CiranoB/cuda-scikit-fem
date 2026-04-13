@@ -20,6 +20,20 @@
             //     ">",
             //     "log2.log"
             // ]
+        },
+        {
+            "name": "Profiler: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "cProfile",
+            "args": ["-o", "program.prof", "${file}"],
+            "console": "integratedTerminal",
+            "env":{
+                "PYTHONPATH": "${workspaceFolder}",
+                // "REFINED_TIMES": "3",
+                // "HALF_PRECISION": "0",
+                // "TOLERANCE": "1e-10"
+            }
         }
     ]
 }

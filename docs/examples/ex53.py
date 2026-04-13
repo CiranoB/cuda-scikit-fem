@@ -3,8 +3,8 @@
 This is a distributed version of ex52.
 
 """
-from cudaskfem import *
-from cudaskfem.helpers import *
+from skfem import *
+from skfem.helpers import *
 import petsc4py.PETSc as petsc
 import time
 

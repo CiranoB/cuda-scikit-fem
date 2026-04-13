@@ -75,8 +75,8 @@ which may be alternatively formulated by expressions of the trace:
 """
 import numpy as np
 
-from cudaskfem import *
-from cudaskfem.helpers import grad, identity, ddot, det, transpose, inv, trace, mul
+from skfem import *
+from skfem.helpers import grad, identity, ddot, det, transpose, inv, trace, mul
 
 # note: rough mesh to make tests fast
 mesh = MeshHex.init_tensor(

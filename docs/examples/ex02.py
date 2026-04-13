@@ -46,10 +46,21 @@ using the `non-conforming Morley finite element
 is a piecewise quadratic :math:`C^0`-continuous element for biharmonic problems.
 
 """
-from cudaskfem import *
-from cudaskfem.models.poisson import unit_load
-from cudaskfem.helpers import dd, ddot, trace, eye
+from skfem import *
+from skfem.models.poisson import unit_load
+from skfem.helpers import dd, ddot, trace, eye
 import numpy as np
+
+import os
+
+REFINED_TIMES: int = int(os.getenv("REFINED_TIMES", 3))
+TOLERANCE: float = float(os.getenv("TOLERANCE", 1e-5))
+HALF_PRECISION: bool = bool(int(os.getenv("HALF_PRECISION", "0")))
+
+print("--------------------")
+print("Ex 02, refined times: ", REFINED_TIMES)
+print("Tolerance: ", TOLERANCE)
+print("Using half precision" if HALF_PRECISION else "Using double precision")
 
 m = (MeshTri
      .init_symmetric()
@@ -87,7 +98,7 @@ D = np.hstack((
 x = solve(*condense(K, f, D=D))
 
 def visualize():
-    from cudaskfem.visuals.matplotlib import draw, plot
+    from skfem.visuals.matplotlib import draw, plot
     ax = draw(m)
     return plot(basis,
                 x,
@@ -96,5 +107,5 @@ def visualize():
                 colorbar=True,
                 nrefs=2)
 
-if __name__ == "__main__":
-    visualize().show()
+# if __name__ == "__main__":
+#     visualize().show()

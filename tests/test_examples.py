@@ -8,6 +8,7 @@ import numpy as np
 class TestEx01(TestCase):
 
     def runTest(self):
+        print("exercise 1")
         import docs.examples.ex01 as ex01
         self.assertAlmostEqual(np.max(ex01.x), 0.073657185490792)
 
@@ -15,6 +16,7 @@ class TestEx01(TestCase):
 class TestEx02(TestCase):
 
     def runTest(self):
+        print("exercise 2")
         import docs.examples.ex02 as ex02
         self.assertAlmostEqual(np.max(ex02.x[ex02.basis.nodal_dofs[0]]),
                                0.00033840961095522285)
@@ -23,6 +25,7 @@ class TestEx02(TestCase):
 class TestEx03(TestCase):
 
     def runTest(self):
+        print("exercise 3")
         import docs.examples.ex03 as ex03
         self.assertAlmostEqual(ex03.L[0], 0.00418289)
 
@@ -30,6 +33,7 @@ class TestEx03(TestCase):
 class TestEx04(TestCase):
 
     def runTest(self):
+        print("exercise 4")
         import docs.examples.ex04 as ex04
         self.assertAlmostEqual(np.max(ex04.vonmises1), 62.142012862607004)
         self.assertAlmostEqual(np.max(ex04.vonmises2), 65.29106691804004)
@@ -38,6 +42,7 @@ class TestEx04(TestCase):
 class TestEx05(TestCase):
 
     def runTest(self):
+        print("exercise 5")
         import docs.examples.ex05 as ex05
         self.assertAlmostEqual(np.max(ex05.x), 0.93570751751091152)
 
@@ -45,6 +50,7 @@ class TestEx05(TestCase):
 class TestEx06(TestCase):
 
     def runTest(self):
+        print("exercise 6")
         import docs.examples.ex06 as ex06
         self.assertAlmostEqual(np.max(ex06.x), 0.073651530833125131)
 
@@ -52,6 +58,7 @@ class TestEx06(TestCase):
 class TestEx07(TestCase):
 
     def runTest(self):
+        print("exercise 7")
         import docs.examples.ex07 as ex07
         self.assertAlmostEqual(np.max(ex07.x), 0.07367139175949584)
 
@@ -59,6 +66,7 @@ class TestEx07(TestCase):
 class TestEx08(TestCase):
 
     def runTest(self):
+        print("exercise 8")
         import docs.examples.ex08 as ex08  # noqa
         # only run the initialization, nothing to test
 
@@ -66,6 +74,7 @@ class TestEx08(TestCase):
 class TestEx09(TestCase):
 
     def runTest(self):
+        print("exercise 9")
         import docs.examples.ex09 as ex09
         self.assertAlmostEqual(np.max(ex09.x), 0.05528520791811886, places=6)
 
@@ -73,6 +82,7 @@ class TestEx09(TestCase):
 class TestEx10(TestCase):
 
     def runTest(self):
+        print("exercise 10")
         import docs.examples.ex10 as ex10
         self.assertAlmostEqual(np.mean(ex10.x), 0.277931521728906)
 
@@ -80,6 +90,7 @@ class TestEx10(TestCase):
 class TestEx11(TestCase):
 
     def runTest(self):
+        print("exercise 11")
         import docs.examples.ex11 as ex11
         u = ex11.u
         ib = ex11.basis
@@ -91,6 +102,7 @@ class TestEx11(TestCase):
 class TestEx12(TestCase):
 
     def runTest(self):
+        print("exercise 12")
         import docs.examples.ex12 as ex
         self.assertAlmostEqual(ex.area, np.pi, delta=1e-2)
         self.assertAlmostEqual(ex.k, 1 / 8 / np.pi, delta=1e-5)
@@ -100,6 +112,7 @@ class TestEx12(TestCase):
 class TestEx13(TestCase):
 
     def runTest(self):
+        print("exercise 13")
         import docs.examples.ex13 as ex
         u = ex.u
         A = ex.A
@@ -115,6 +128,7 @@ class TestEx13(TestCase):
 class TestEx14(TestCase):
 
     def runTest(self):
+        print("exercise 14")
         import docs.examples.ex14
         u = docs.examples.ex14.u
         A = docs.examples.ex14.A
@@ -124,6 +138,7 @@ class TestEx14(TestCase):
 class TestEx15(TestCase):
 
     def runTest(self):
+        print("exercise 15")
         import docs.examples.ex15 as ex15
         self.assertTrue(np.max(ex15.x) - 0.1234567 < 1e-5)
 
@@ -131,6 +146,7 @@ class TestEx15(TestCase):
 class TestEx16(TestCase):
 
     def runTest(self):
+        print("exercise 16")
         import docs.examples.ex16 as ex16
         self.assertTrue(np.linalg.norm(np.array([0, 2, 6, 12, 20, 30])
                                        - ex16.ks) < 0.4)
@@ -140,12 +156,14 @@ class TestEx16(TestCase):
 class TestEx17(TestCase):
 
     def runTest(self):
+        print("exercise 17")
         from docs.examples.ex17 import T0
         self.assertAlmostEqual(*T0.values(), 2)
 
 
 class TestEx18(TestCase):
     def runTest(self):
+        print("exercise 18")
         import docs.examples.ex18 as ex  # noqa
 
         self.assertAlmostEqual(
@@ -167,6 +185,7 @@ class TestEx18(TestCase):
 class TestEx19(TestCase):
 
     def runTest(self):
+        print("exercise 19")
         import docs.examples.ex19 as ex  # noqa
 
         t, u = next(ex.evolve(0.0, ex.u_init))
@@ -176,6 +195,7 @@ class TestEx19(TestCase):
 class TestEx20(TestCase):
 
     def runTest(self):
+        print("exercise 20")
         import docs.examples.ex20 as ex
         psi0 = ex.psi0
         self.assertAlmostEqual(psi0, 1 / 64, delta=1e-3)
@@ -184,6 +204,7 @@ class TestEx20(TestCase):
 class TestEx21(TestCase):
 
     def runTest(self):
+        print("exercise 21")
         import docs.examples.ex21 as ex
         x = ex.x
         K = ex.K
@@ -195,6 +216,7 @@ class TestEx21(TestCase):
 class TestEx22(TestCase):
 
     def runTest(self):
+        print("exercise 22")
         import docs.examples.ex22 as ex
         u = ex.u
         K = ex.K
@@ -204,6 +226,7 @@ class TestEx22(TestCase):
 class TestEx24(TestCase):
 
     def runTest(self):
+        print("exercise 24")
         import docs.examples.ex24 as ex24  # noqa
 
         self.assertAlmostEqual(min(ex24.vorticity), -0.05171085161096803)
@@ -212,6 +235,7 @@ class TestEx24(TestCase):
 class TestEx25(TestCase):
 
     def runTest(self):
+        print("exercise 25")
         import docs.examples.ex25 as ex25
         mu = np.mean(ex25.t)
         self.assertAlmostEqual(mu, 0.4642600944590631, places=5)
@@ -221,6 +245,7 @@ class TestEx25(TestCase):
 class TestEx26(TestCase):
 
     def runTest(self):
+        print("exercise 26")
         from docs.examples.ex26 import T0
         self.assertAlmostEqual(*T0.values(), delta=2e-4)
 
@@ -228,6 +253,7 @@ class TestEx26(TestCase):
 class TestEx28(TestCase):
 
     def runTest(self):
+        print("exercise 28")
         from docs.examples.ex28 import exit_interface_temperature as t
         self.assertAlmostEqual(*t.values(), delta=2e-4)
 
@@ -235,6 +261,7 @@ class TestEx28(TestCase):
 class TestEx29(TestCase):
 
     def runTest(self):
+        print("exercise 29")
         from docs.examples.ex29 import c
         wavespeed = tuple(
             np.array(sorted(wavespeed, key=np.imag, reverse=True))
@@ -246,6 +273,7 @@ class TestEx29(TestCase):
 class TestEx30(TestCase):
 
     def runTest(self):
+        print("exercise 30")
         from docs.examples.ex30 import psi0
         self.assertAlmostEqual(psi0, 0.162/128, delta=1e-6)
 
@@ -253,6 +281,7 @@ class TestEx30(TestCase):
 class TestEx31(TestCase):
 
     def runTest(self):
+        print("exercise 31")
         from docs.examples.ex31 import L
         self.assertAlmostEqual(L[0], 22.597202568397734, delta=1e-6)
 
@@ -262,6 +291,7 @@ class TestEx31(TestCase):
 class TestEx32(TestCase):
 
     def runTest(self):
+        print("exercise 32")
         from docs.examples.ex32 import l2error_p
         self.assertLess(l2error_p, 1e-5)
 
@@ -269,6 +299,7 @@ class TestEx32(TestCase):
 class TestEx33(TestCase):
 
     def runTest(self):
+        print("exercise 33")
         from docs.examples.ex33 import x
         self.assertAlmostEqual(np.max(x), 0.12220233975847579, delta=1e-8)
 
@@ -276,6 +307,7 @@ class TestEx33(TestCase):
 class TestEx34(TestCase):
 
     def runTest(self):
+        print("exercise 34")
         from docs.examples.ex34 import err
         self.assertAlmostEqual(err, 0., delta=1e-13)
 
@@ -283,6 +315,7 @@ class TestEx34(TestCase):
 class TestEx35(TestCase):
 
     def runTest(self):
+        print("exercise 35")
         from docs.examples.ex35 import Z
         # exact value depends also on mesh generation,
         # over which we don't have control.
@@ -293,6 +326,7 @@ class TestEx35(TestCase):
 class TestEx36(TestCase):
 
     def runTest(self):
+        print("exercise 36")
         from docs.examples.ex36 import du, dp, volume_deformed, norm_res
         self.assertAlmostEqual(np.linalg.norm(du),
                                16.530715141106377,
@@ -306,6 +340,7 @@ class TestEx36(TestCase):
 class TestEx37(TestCase):
 
     def runTest(self):
+        print("exercise 37")
         from docs.examples.ex37 import u
         self.assertAlmostEqual(np.max(u), 0.8619044895314989)
 
@@ -313,6 +348,7 @@ class TestEx37(TestCase):
 class TestEx38(TestCase):
 
     def runTest(self):
+        print("exercise 38")
         from docs.examples.ex38 import l2error
         self.assertLess(l2error, 3e-3)
 
@@ -320,6 +356,7 @@ class TestEx38(TestCase):
 class TestEx39(TestCase):
 
     def runTest(self):
+        print("exercise 39")
         import docs.examples.ex39 as ex  # noqa
 
         t, u = next(ex.evolve(0.0, ex.u_init))
@@ -329,6 +366,7 @@ class TestEx39(TestCase):
 class TestEx40(TestCase):
 
     def runTest(self):
+        print("exercise 40")
         import docs.examples.ex40 as ex
 
         self.assertAlmostEqual(ex.u1.max(), 0.0748, delta=1e-3)
@@ -340,6 +378,7 @@ class TestEx40(TestCase):
 class TestEx41(TestCase):
 
     def runTest(self):
+        print("exercise 41")
         import docs.examples.ex41 as ex
 
         self.assertAlmostEqual(ex.y.max(), 0.025183404207706196)
@@ -349,6 +388,7 @@ class TestEx41(TestCase):
 class TestEx42(TestCase):
 
     def runTest(self):
+        print("exercise 42")
         import docs.examples.ex42 as ex
 
         self.assertAlmostEqual(ex.x.max(), 0.0009824131638261542, delta=1e-5)
@@ -357,6 +397,7 @@ class TestEx42(TestCase):
 class TestEx43(TestCase):
 
     def runTest(self):
+        print("exercise 43")
         import docs.examples.ex43 as ex
 
         self.assertAlmostEqual(ex.u.max(), 0.2466622622014594, delta=1e-8)
@@ -365,6 +406,7 @@ class TestEx43(TestCase):
 class TestEx44(TestCase):
 
     def runTest(self):
+        print("exercise 44")
         import docs.examples.ex44 as ex  # noqa
 
         stepper = ex.evolve(0., ex.U)
@@ -376,6 +418,7 @@ class TestEx44(TestCase):
 class TestEx45(TestCase):
 
     def runTest(self):
+        print("exercise 45")
         import docs.examples.ex45 as ex45
         self.assertAlmostEqual(np.mean(ex45.x), 0.277931521728906)
 
@@ -383,6 +426,7 @@ class TestEx45(TestCase):
 class TestEx46(TestCase):
 
     def runTest(self):
+        print("exercise 46")
         import docs.examples.ex46 as ex46
         self.assertAlmostEqual(ex46.err1, 0, delta=1e-4)
         self.assertAlmostEqual(ex46.err2, 0, delta=1e-4)
@@ -392,6 +436,7 @@ class TestEx46(TestCase):
 class TestEx47(TestCase):
 
     def runTest(self):
+        print("exercise 47")
         import docs.examples.ex47 as ex47
         self.assertAlmostEqual(ex47.l2, 0, delta=1e-2)
 
@@ -399,6 +444,7 @@ class TestEx47(TestCase):
 class TestEx48(TestCase):
 
     def runTest(self):
+        print("exercise 48")
         import docs.examples.ex48 as ex48
         self.assertAlmostEqual(np.max(ex48.u), 0.0012653264834919884)
 
@@ -406,6 +452,7 @@ class TestEx48(TestCase):
 class TestEx49(TestCase):
 
     def runTest(self):
+        print("exercise 49")
         import docs.examples.ex49 as ex49
         self.assertLess(np.abs(ex49.l2), 0.0012)
 
@@ -413,6 +460,7 @@ class TestEx49(TestCase):
 class TestEx50(TestCase):
 
     def runTest(self):
+        print("exercise 50")
         import docs.examples.ex50 as ex50
         self.assertAlmostEqual(ex50.u.max(),
                                1.0026836382652844)
@@ -421,6 +469,7 @@ class TestEx50(TestCase):
 class TestEx51(TestCase):
 
     def runTest(self):
+        print("exercise 51")
         import docs.examples.ex51 as ex51
         self.assertAlmostEqual(ex51.x1.max(),
                                0.15983570088457588)

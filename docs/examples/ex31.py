@@ -9,8 +9,8 @@ mapping via biquadratic basis and finite element approximation using fifth-order
 quadrilaterals.
 
 """
-from cudaskfem import *
-from cudaskfem.models.poisson import laplace, mass
+from skfem import *
+from skfem.models.poisson import laplace, mass
 import numpy as np
 
 
@@ -48,7 +48,7 @@ if __name__ == '__main__':
     from sys import argv
     name = splitext(argv[0])[0]
 
-    from cudaskfem.visuals.matplotlib import *
+    from skfem.visuals.matplotlib import *
     ax = draw(m)
     plot(basis, x[:, 6], Nrefs=6, ax=ax)
     savefig(f'{name}_eigenmode.png')

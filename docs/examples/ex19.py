@@ -42,8 +42,8 @@ from typing import Iterator, Tuple
 import numpy as np
 from scipy.sparse.linalg import splu
 
-from cudaskfem import *
-from cudaskfem.models.poisson import laplace, mass
+from skfem import *
+from skfem.models.poisson import laplace, mass
 
 
 halfwidth = np.array([2., 3.])
@@ -68,6 +68,7 @@ L0, M0 = penalize(L, M, D=basis.get_dofs())
 A = M0 + theta * L0 * dt
 B = M0 - (1 - theta) * L0 * dt
 
+print("Size: ", A.size)
 backsolve = splu(A.T).solve  # .T as splu prefers CSC
 
 u_init = np.cos(np.pi * basis.doflocs / 2 / halfwidth[:, None]).prod(0)
@@ -96,7 +97,7 @@ if __name__ == '__main__':
     from matplotlib.animation import FuncAnimation
     import matplotlib.pyplot as plt
 
-    from cudaskfem.visuals.matplotlib import plot
+    from skfem.visuals.matplotlib import plot
 
     parser = ArgumentParser(description='heat equation in a rectangle')
     parser.add_argument('-g', '--gif', action='store_true', 

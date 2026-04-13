@@ -60,8 +60,8 @@ for the problem is loaded from an external file *beams.msh*, which is
 included in the source code distribution.
 
 """
-from cudaskfem import *
-from cudaskfem.models.elasticity import linear_elasticity,\
+from skfem import *
+from skfem.models.elasticity import linear_elasticity,\
                                     lame_parameters
 import numpy as np
 
@@ -80,7 +80,7 @@ rho = 8050.0
 
 @BilinearForm
 def mass(u, v, w):
-    from cudaskfem.helpers import dot
+    from skfem.helpers import dot
     return dot(rho * u, v)
 
 M = asm(mass, ib)
@@ -89,7 +89,7 @@ L, x = solve(
     *condense(K, M, D=ib.get_dofs("fixed")), solver=solver_eigen_scipy_sym()
 )
 
-if __name__ == "__main__":
-    from cudaskfem.visuals.matplotlib import draw, show
-    sf = 10.0
-    m.translated(sf * x[ib.nodal_dofs, 0]).draw().show()
+# if __name__ == "__main__":
+#     from skfem.visuals.matplotlib import draw, show
+#     sf = 10.0
+#     m.translated(sf * x[ib.nodal_dofs, 0]).draw().show()

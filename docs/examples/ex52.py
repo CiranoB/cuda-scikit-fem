@@ -7,8 +7,8 @@ variety of linear solvers and preconditiors from PETSc.
 This example requires petsc4py.
 
 """
-from cudaskfem import *
-from cudaskfem.helpers import *
+from skfem import *
+from skfem.helpers import *
 import petsc4py.PETSc as petsc
 import time
 

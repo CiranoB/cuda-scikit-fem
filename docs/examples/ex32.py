@@ -50,10 +50,10 @@ then be passed to the MINRES sparse iterative solver from SciPy.
 """
 from typing import NamedTuple
 
-from cudaskfem import *
-from cudaskfem.io.meshio import from_meshio
-from cudaskfem.models.poisson import vector_laplace, mass
-from cudaskfem.models.general import divergence
+from skfem import *
+from skfem.io.meshio import from_meshio
+from skfem.models.poisson import vector_laplace, mass
+from skfem.models.general import divergence
 
 import numpy as np
 from scipy.sparse import bmat, spmatrix
@@ -62,8 +62,8 @@ from scipy.sparse.linalg import LinearOperator, minres
 
 try:
     from pyamg import smoothed_aggregation_solver
-
     def build_pc(A: spmatrix, **kwargs) -> LinearOperator:
+        print("A size: ", A.size)
         return smoothed_aggregation_solver(A, **kwargs).aspreconditioner()
 
 except:

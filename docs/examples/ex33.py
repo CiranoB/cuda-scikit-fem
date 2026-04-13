@@ -14,49 +14,50 @@ n|_{\partial \Omega} = 0` using the lowest order Nédélec edge element.
 """
 import numpy as np
 
-from cudaskfem import *
+from skfem import *
 
-m = MeshTet.init_tensor(
-    np.linspace(-1, 1, 15),
-    np.linspace(-1, 1, 15),
-    np.linspace(-1, 1, 15)
-)
-e = ElementTetN0()
-basis = Basis(m, e)
-
-
-@BilinearForm
-def dudv(E, v, w):
-    from cudaskfem.helpers import curl, dot
-    return dot(curl(E), curl(v)) + dot(E, v)
-
-def f(x, y, z):
-    return np.array([
-        x * y * (1 - y**2) * (1 - z**2) + 2 * x * y * (1 - z**2),
-        y**2 * (1 - x**2) * (1 - z**2) + (1 - y**2) * (2 - x**2 - z**2),
-        y * z * (1 - x**2) * (1 - y**2) + 2 * y * z * (1 - x**2),
-    ])
-
-@LinearForm
-def fv(v, w):
-    from cudaskfem.helpers import dot
-    return dot(f(*w.x), v)
+for i in [27,29,31,33,35]:
+    m = MeshTet.init_tensor(
+        np.linspace(-1, 1, i),
+        np.linspace(-1, 1, i),
+        np.linspace(-1, 1, i)
+    )
+    e = ElementTetN0()
+    basis = Basis(m, e)
 
 
-A = asm(dudv, basis)
-f = asm(fv, basis)
+    @BilinearForm
+    def dudv(E, v, w):
+        from skfem.helpers import curl, dot
+        return dot(curl(E), curl(v)) + dot(E, v)
 
-D = basis.get_dofs()
+    def f(x, y, z):
+        return np.array([
+            x * y * (1 - y**2) * (1 - z**2) + 2 * x * y * (1 - z**2),
+            y**2 * (1 - x**2) * (1 - z**2) + (1 - y**2) * (2 - x**2 - z**2),
+            y * z * (1 - x**2) * (1 - y**2) + 2 * y * z * (1 - x**2),
+        ])
 
-x = solve(*condense(A, f, D=D))
+    @LinearForm
+    def fv(v, w):
+        from skfem.helpers import dot
+        return dot(f(*w.x), v)
 
-ybasis = basis.with_element(ElementVector(ElementTetP1()))
-y = ybasis.project(basis.interpolate(x))
 
-if __name__ == '__main__':
+    A = asm(dudv, basis)
+    f = asm(fv, basis)
 
-    from os.path import splitext
-    from sys import argv
-    name = splitext(argv[0])[0]
+    D = basis.get_dofs()
 
-    m.save('{}_solution.vtk'.format(name), {'field': y[ybasis.nodal_dofs].T})
+    x = solve(*condense(A, f, D=D))
+
+    ybasis = basis.with_element(ElementVector(ElementTetP1()))
+    y = ybasis.project(basis.interpolate(x))
+
+# if __name__ == '__main__':
+
+#     from os.path import splitext
+#     from sys import argv
+#     name = splitext(argv[0])[0]
+
+#     m.save('{}_solution.vtk'.format(name), {'field': y[ybasis.nodal_dofs].T})

@@ -1,5 +1,16 @@
-from cudaskfem import *
-from cudaskfem.helpers import dot, grad
+from skfem import *
+from skfem.helpers import dot, grad
+
+import os
+
+REFINED_TIMES: int = int(os.getenv("REFINED_TIMES", 3))
+TOLERANCE: float = float(os.getenv("TOLERANCE", 1e-5))
+HALF_PRECISION: bool = bool(int(os.getenv("HALF_PRECISION", "0")))
+
+print("--------------------")
+print("Ex 01, refined times: ", REFINED_TIMES)
+print("Tolerance: ", TOLERANCE)
+print("Using half precision" if HALF_PRECISION else "Using double precision")
 
 # # enable additional mesh validity checks, sacrificing performance
 # import logging
@@ -7,7 +18,7 @@ from cudaskfem.helpers import dot, grad
 # logging.getLogger('skfem').setLevel(logging.DEBUG)
 
 # create the mesh
-m = MeshTri().refined(6)
+m = MeshTri().refined(REFINED_TIMES)
 # or, with your own points and cells:
 # m = MeshTri(points, cells)
 # or, load from file
@@ -37,8 +48,8 @@ A, b = enforce(A, b, D=m.boundary_nodes())
 x = solve(A, b)
 
 def visualize():
-    from cudaskfem.visuals.matplotlib import plot
+    from skfem.visuals.matplotlib import plot
     return plot(m, x, shading='gouraud', colorbar=True)
 
-if __name__ == "__main__":
-    visualize().show()
+# if __name__ == "__main__":
+#     visualize().show()

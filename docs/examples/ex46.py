@@ -1,8 +1,8 @@
 """Waveguide cutoff analysis."""
 
 import numpy as np
-from cudaskfem import *
-from cudaskfem.helpers import *
+from skfem import *
+from skfem.helpers import *
 
 
 # three different mesh and element types

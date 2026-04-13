@@ -9,15 +9,15 @@ with the boundary conditions
 The analytical solution gives :math:`u(1)=1/8`.
 
 """
-from cudaskfem import *
+from skfem import *
 
-m = MeshLine().refined(3).with_boundaries({"left": lambda x: x[0] == 0})
+m = MeshLine().refined(6).with_boundaries({"left": lambda x: x[0] == 0})
 e = ElementLineHermite()
 basis = Basis(m, e)
 
 @BilinearForm
 def bilinf(u, v, w):
-    from cudaskfem.helpers import dd, ddot
+    from skfem.helpers import dd, ddot
     return ddot(dd(u), dd(v))
 
 @LinearForm
@@ -41,6 +41,6 @@ if __name__ == '__main__':
     from sys import argv
     name = splitext(argv[0])[0]
 
-    from cudaskfem.visuals.matplotlib import *
+    from skfem.visuals.matplotlib import *
     plot(basis, x, Nrefs=3)
     savefig(f'{name}_solution.png')

@@ -2,9 +2,9 @@ import unittest
 
 import numpy as np
 
-from cudaskfem import BilinearForm, LinearForm, asm, solve, condense
-from cudaskfem.models.poisson import laplace
-from cudaskfem.element import (
+from skfem import BilinearForm, LinearForm, asm, solve, condense
+from skfem.models.poisson import laplace
+from skfem.element import (
     ElementHex1,
     ElementHex2,
     ElementHexS2,
@@ -32,8 +32,8 @@ from cudaskfem.element import (
     ElementTriP2G,
     ElementTriP2B,
 )
-from cudaskfem.assembly import FacetBasis, Basis
-from cudaskfem.mesh import (MeshHex, MeshLine, MeshQuad, MeshTet, MeshTri,
+from skfem.assembly import FacetBasis, Basis
+from skfem.mesh import (MeshHex, MeshLine, MeshQuad, MeshTet, MeshTri,
                         MeshWedge1, MeshQuad2, MeshTri2, MeshTet2, MeshHex2)
 
 
