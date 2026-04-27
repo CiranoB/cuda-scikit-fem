@@ -16,7 +16,7 @@ import numpy as np
 
 from skfem import *
 
-for i in [27,29,31,33,35]:
+for i in [15,16,17,18]:
     m = MeshTet.init_tensor(
         np.linspace(-1, 1, i),
         np.linspace(-1, 1, i),
@@ -54,10 +54,10 @@ for i in [27,29,31,33,35]:
     ybasis = basis.with_element(ElementVector(ElementTetP1()))
     y = ybasis.project(basis.interpolate(x))
 
-# if __name__ == '__main__':
+if __name__ == '__main__':
 
-#     from os.path import splitext
-#     from sys import argv
-#     name = splitext(argv[0])[0]
+    from os.path import splitext
+    from sys import argv
+    name = splitext(argv[0])[0]
 
-#     m.save('{}_solution.vtk'.format(name), {'field': y[ybasis.nodal_dofs].T})
+    m.save('{}_solution.vtk'.format(name), {'field': y[ybasis.nodal_dofs].T})

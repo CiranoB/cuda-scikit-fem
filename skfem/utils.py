@@ -7,7 +7,8 @@ import time
 from typing import Optional, Union, Tuple, Callable, Dict
 
 import numpy as np
-from skfem.sparse_solvers import is_cg_compatible, is_symmetric, load_to_gpu, read_from_gpu, solve_cg_cpu, solve_cg_with_jacobi_preconditioner, solve_cg_with_ilu_preconditioner, solve_cg_without_jacobi_preconditioner, solve_spsolve_cpu, solve_superlu_gpu
+from skfem.sparse_solvers import load_to_gpu, read_from_gpu, solve_cg_cpu, solve_cg_gpu, solve_gmres_gpu, get_jacobi_preconditioner, get_ilu_preconditioner, solve_spsolve_cpu, solve_superlu_gpu
+from skfem.solvers_aplicability import is_cg_compatible as check_cg_applicable, is_gmres_compatible as check_gmres_applicable
 import scipy.sparse as sp
 import scipy.sparse.csgraph as spg
 import scipy.sparse.linalg as spl
@@ -135,12 +136,12 @@ def solve_multiple_solver(A, b, x):
     # cp.get_default_memory_pool().free_all_blocks()
     # del x_gpu
 
-    x_gpu = solve_cg_without_jacobi_preconditioner(A_gpu, b_gpu, TOLERANCE)
+    x_gpu = solve_cg_gpu(A_gpu, b_gpu, TOLERANCE)
     x_cg_no_prec = read_from_gpu(x_gpu)
     cp.get_default_memory_pool().free_all_blocks()
     del x_gpu
 
-    x_gpu = solve_cg_with_jacobi_preconditioner(A_gpu, b_gpu, TOLERANCE)
+    x_gpu = solve_cg_gpu(A_gpu, b_gpu, TOLERANCE, M=get_jacobi_preconditioner(A_gpu))
     x_cg_jacobi = read_from_gpu(x_gpu)
     cp.get_default_memory_pool().free_all_blocks()
     del x_gpu
@@ -165,16 +166,16 @@ def solve_multiple_solver(A, b, x):
 
 
 def solver_direct_scipy(**kwargs):  
-    def solver(A, b, **solve_time_kwargs):
+    def solver(A: sp.spmatrix, b: np.ndarray, **solve_time_kwargs):
         print("A size: ", A.size)
         local_kwargs = kwargs.copy()
         local_kwargs.update(solve_time_kwargs)
         
         x = solve_spsolve_cpu(A, b)
-        # print("Simetrica: ", is_symmetric(A))
-        # print("Aplicavel ao CG: ", is_cg_compatible(A))
+        # check_cg_applicable(A)
+        # check_gmres_applicable(A)
 
-        solve_multiple_solver(A, b, x)
+        # solve_multiple_solver(A, b, x)
         
 
         return x
