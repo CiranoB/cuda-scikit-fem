@@ -46,6 +46,17 @@ def get_jacobi_preconditioner(A_gpu: cpx_csr) -> LinearOperator:
     return LinearOperator(A_gpu.shape, matvec=matvec)
 
 
+def get_jacobi_preconditioner_cpu(A_cpu: sp.spmatrix) -> spla.LinearOperator:
+    """Returns a Jacobi (diagonal) preconditioner as a LinearOperator for CPU."""
+    diag = A_cpu.diagonal()
+    diag_inv = np.where(diag != 0, 1.0 / diag, 1.0)
+
+    def matvec(v):
+        return diag_inv * v
+
+    return spla.LinearOperator(A_cpu.shape, matvec=matvec)
+
+
 def get_ilu_preconditioner(A_gpu: cpx_csr) -> LinearOperator:
     """Returns an ILU preconditioner as a LinearOperator.
 
@@ -110,9 +121,9 @@ def solve_gmres_gpu(
 # ---------------------------------------------------------------------------
 
 @timing_decorator
-def solve_spsolve_gpu(A_gpu: cpx_csr, b_gpu: cp.ndarray) -> cp.ndarray:
+def solve_spsolve_gpu(A_gpu: cpx_csr, b_gpu: cp.ndarray, use_qr: bool = True) -> cp.ndarray:
     """Solves A x = b using cupyx direct sparse solver (GPU)."""
-    return cpx_spsolve(A_gpu, b_gpu)
+    return cpx_spsolve(A_gpu, b_gpu, use_qr)
 
 
 @timing_decorator
@@ -140,6 +151,7 @@ def solve_cg_cpu(
     A_cpu: sp.spmatrix,
     b_cpu: np.ndarray,
     tol: float = 1e-5,
+    M: Optional[spla.LinearOperator] = None,
 ) -> np.ndarray:
     """Solves A x = b using SciPy's CG solver (CPU).
 
@@ -151,8 +163,11 @@ def solve_cg_cpu(
         Right-hand side vector as a NumPy array.
     tol:
         Solver tolerance.
+    M:
+        Preconditioner (e.g. from ``get_jacobi_preconditioner_cpu``).
+        ``None`` means no preconditioning.
     """
-    x, info = spla.cg(A_cpu, b_cpu, rtol=tol)
+    x, info = spla.cg(A_cpu, b_cpu, rtol=tol, M=M)
     if info != 0:
         print(f"Warning: CG CPU did not converge (info={info})")
     return x

@@ -1,13 +1,14 @@
 """This module contains utility functions such as convenient access to
 SciPy linear solvers."""
 
+from re import X
 import sys
 import logging
 import time
 from typing import Optional, Union, Tuple, Callable, Dict
 
 import numpy as np
-from skfem.sparse_solvers import load_to_gpu, read_from_gpu, solve_cg_cpu, solve_cg_gpu, solve_gmres_gpu, get_jacobi_preconditioner, get_ilu_preconditioner, solve_spsolve_cpu, solve_superlu_gpu
+from skfem.sparse_solvers import load_to_gpu, read_from_gpu, solve_cg_cpu, solve_cg_gpu, solve_gmres_gpu, get_jacobi_preconditioner, get_jacobi_preconditioner_cpu, get_ilu_preconditioner, solve_spsolve_cpu, solve_spsolve_gpu, solve_superlu_gpu
 from skfem.solvers_aplicability import is_cg_compatible as check_cg_applicable, is_gmres_compatible as check_gmres_applicable
 import scipy.sparse as sp
 import scipy.sparse.csgraph as spg
@@ -123,18 +124,37 @@ def solver_eigen_scipy_sym(**kwargs) -> EigenSolver:
 
 TOLERANCE: float = float(os.getenv("TOLERANCE", 1e-5))
 
-def solve_multiple_solver(A, b, x):
+
+def solve_multiple_solver(A, b, x_cpu):
     # CPU CG solver
     x_cg_cpu = solve_cg_cpu(A, b, TOLERANCE)
+    x_cg_cpu_jacobi = solve_cg_cpu(A, b, TOLERANCE, M=get_jacobi_preconditioner_cpu(A))
 
     # Load to GPU
     A_gpu, b_gpu = load_to_gpu(A,b)
 
+    x_spsolve_gpu = None
     # Solvers
-    # x_gpu = solve_superlu_gpu(A_gpu, b_gpu)
-    # x_superlu = read_from_gpu(x_gpu)
-    # cp.get_default_memory_pool().free_all_blocks()
-    # del x_gpu
+    if not bool(os.getenv("DISABLE_SPSOLVE_GPU", False)):
+        try:
+            x_gpu = solve_spsolve_gpu(A_gpu, b_gpu)
+            x_spsolve_gpu = read_from_gpu(x_gpu)
+            cp.get_default_memory_pool().free_all_blocks()
+            del x_gpu
+        except Exception:
+            os.environ["DISABLE_SPSOLVE_GPU"] = "1"
+            print("Skipping SPSOLVE GPU due memory constrains")
+
+    x_superlu_gpu = None
+    if not bool(os.getenv("DISABLE_SUPERLU_GPU", False)):
+        try:
+            x_gpu = solve_superlu_gpu(A_gpu, b_gpu)
+            x_superlu_gpu = read_from_gpu(x_gpu)
+            cp.get_default_memory_pool().free_all_blocks()
+            del x_gpu
+        except Exception:
+            os.environ["DISABLE_SUPERLU_GPU"] = "1"
+            print("Skipping SPSOLVE GPU due memory constrains")
 
     x_gpu = solve_cg_gpu(A_gpu, b_gpu, TOLERANCE)
     x_cg_no_prec = read_from_gpu(x_gpu)
@@ -148,17 +168,27 @@ def solve_multiple_solver(A, b, x):
 
 
     # Compare results
-    def compare(name, x_gpu_result, x_cpu):
-        diff = np.abs(x_gpu_result - x_cpu)
-        rel_err = diff / (np.abs(x_cpu) + 1e-12)
+    def compare(name, candidate, reference):
+        diff = np.abs(candidate - reference)
+        rel_err = diff / (np.abs(reference) + 1e-12)
         print(f"[{name}] max abs diff: {diff.max():.6e}, "
             f"mean abs diff: {diff.mean():.6e}, "
             f"max rel error: {rel_err.max():.6e}")
 
-    # compare("SuperLU GPU vs CPU spsolve", x_superlu, x)
-    compare("CG CPU vs CPU spsolve", x_cg_cpu, x)
-    compare("CG (no precond) GPU vs CPU spsolve", x_cg_no_prec, x)
-    compare("CG (Jacobi precond) GPU vs CPU spsolve", x_cg_jacobi, x)
+    if x_spsolve_gpu is not None:
+        compare("spsolve GPU vs CPU spsolve", x_spsolve_gpu, x_cpu)
+    else: 
+        print("Skipping SPSOLVE GPU comparison due memory constrains")
+
+    if x_superlu_gpu is not None:
+        compare("SuperLU GPU vs CPU spsolve", x_superlu_gpu, x_cpu)
+    else: 
+        print("Skipping SUPERLU GPU comparison due memory constrains")
+
+    compare("CG CPU vs CPU spsolve", x_cg_cpu, x_cpu)
+    compare("CG (Jacobi precond) CPU vs CPU spsolve", x_cg_cpu_jacobi, x_cpu)
+    compare("CG (no precond) GPU vs CPU spsolve", x_cg_no_prec, x_cpu)
+    compare("CG (Jacobi precond) GPU vs CPU spsolve", x_cg_jacobi, x_cpu)
             
     # Cleanup
     del A_gpu, b_gpu
@@ -175,7 +205,7 @@ def solver_direct_scipy(**kwargs):
         # check_cg_applicable(A)
         # check_gmres_applicable(A)
 
-        # solve_multiple_solver(A, b, x)
+        solve_multiple_solver(A, b, x)
         
 
         return x

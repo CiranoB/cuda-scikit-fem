@@ -13,10 +13,11 @@ n|_{\partial \Omega} = 0` using the lowest order Nédélec edge element.
 
 """
 import numpy as np
+import os
 
 from skfem import *
 
-for i in [15,16,17,18]:
+for i in range(3,31):
     m = MeshTet.init_tensor(
         np.linspace(-1, 1, i),
         np.linspace(-1, 1, i),
