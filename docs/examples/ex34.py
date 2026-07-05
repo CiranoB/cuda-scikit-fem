@@ -11,7 +11,7 @@ The analytical solution gives :math:`u(1)=1/8`.
 """
 from skfem import *
 
-m = MeshLine().refined(6).with_boundaries({"left": lambda x: x[0] == 0})
+m = MeshLine().refined(3).with_boundaries({"left": lambda x: x[0] == 0})
 e = ElementLineHermite()
 basis = Basis(m, e)
 

@@ -27,7 +27,7 @@ radii = [1., 2.]
 lcar = .1
 
 mesh = (MeshTri
-        .init_tensor(np.linspace(*radii, 1 + int(np.diff(radii).item() / lcar)),
+        .init_tensor(np.linspace(*radii, 1 + int(np.diff(radii)[0] / lcar)),
                      np.linspace(0, np.pi/2, 1 + int(3*np.pi/4 / lcar)))
         .with_boundaries({
             'ground': lambda xi: xi[1] == 0.,
@@ -67,8 +67,8 @@ def visualize():
     from skfem.visuals.matplotlib import plot, show
     return plot(basis, u, shading='gouraud', colorbar=True)
 
-# if __name__ == '__main__':
-#     print('L2 error:', error_L2)
-#     print('conductance:', conductance)
-#     print('Current in through ports:', current)
-#     visualize().show()
+if __name__ == '__main__':
+    print('L2 error:', error_L2)
+    print('conductance:', conductance)
+    print('Current in through ports:', current)
+    visualize().show()

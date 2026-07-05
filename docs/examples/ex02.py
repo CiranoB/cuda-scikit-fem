@@ -51,17 +51,6 @@ from skfem.models.poisson import unit_load
 from skfem.helpers import dd, ddot, trace, eye
 import numpy as np
 
-import os
-
-REFINED_TIMES: int = int(os.getenv("REFINED_TIMES", 3))
-TOLERANCE: float = float(os.getenv("TOLERANCE", 1e-5))
-HALF_PRECISION: bool = bool(int(os.getenv("HALF_PRECISION", "0")))
-
-print("--------------------")
-print("Ex 02, refined times: ", REFINED_TIMES)
-print("Tolerance: ", TOLERANCE)
-print("Using half precision" if HALF_PRECISION else "Using double precision")
-
 m = (MeshTri
      .init_symmetric()
      .refined(3)
@@ -107,5 +96,5 @@ def visualize():
                 colorbar=True,
                 nrefs=2)
 
-# if __name__ == "__main__":
-#     visualize().show()
+if __name__ == "__main__":
+    visualize().show()

@@ -55,5 +55,5 @@ def visualize():
                 colorbar='$\sigma_{xx}$',
                 shading='gouraud')
 
-# if __name__ == "__main__":
-#     visualize().show()
+if __name__ == "__main__":
+    visualize().show()

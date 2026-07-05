@@ -62,8 +62,8 @@ from scipy.sparse.linalg import LinearOperator, minres
 
 try:
     from pyamg import smoothed_aggregation_solver
+
     def build_pc(A: spmatrix, **kwargs) -> LinearOperator:
-        print("A size: ", A.size)
         return smoothed_aggregation_solver(A, **kwargs).aspreconditioner()
 
 except:

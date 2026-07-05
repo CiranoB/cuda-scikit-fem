@@ -89,7 +89,7 @@ L, x = solve(
     *condense(K, M, D=ib.get_dofs("fixed")), solver=solver_eigen_scipy_sym()
 )
 
-# if __name__ == "__main__":
-#     from skfem.visuals.matplotlib import draw, show
-#     sf = 10.0
-#     m.translated(sf * x[ib.nodal_dofs, 0]).draw().show()
+if __name__ == "__main__":
+    from skfem.visuals.matplotlib import draw, show
+    sf = 10.0
+    m.translated(sf * x[ib.nodal_dofs, 0]).draw().show()

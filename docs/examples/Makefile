@@ -14,8 +14,7 @@ all: ex01_solution.png \
      ex28.png ex28-inlet-outlet.png \
      ex29.png \
      ex30_stream-lines.png \
-     ex31_eigenmode.png \
-     ex55_solution.png
+     ex31_eigenmode.png
 %.png: %.py
 	python $<
 %_solution.png: %.py

@@ -4,20 +4,9 @@ import numpy as np
 from skfem import *
 from skfem.supermeshing import intersect, elementwise_quadrature
 
-import os
-
-REFINED_TIMES: int = int(os.getenv("REFINED_TIMES", 5))
-TOLERANCE: float = float(os.getenv("TOLERANCE", 1e-5))
-HALF_PRECISION: bool = bool(int(os.getenv("HALF_PRECISION", "0")))
-
-print("--------------------")
-print("Ex 49, refined times: ", REFINED_TIMES)
-print("Tolerance: ", TOLERANCE)
-print("Using half precision" if HALF_PRECISION else "Using double precision")
-
 
 m1 = MeshTri.init_tensor(np.linspace(0, 1, 4),
-                         np.linspace(0, 1, 4)).refined(2)
+                         np.linspace(0, 1, 4))
 m2 = MeshQuad().refined(2)
 e1 = ElementTriP2()
 e2 = ElementQuad2()
@@ -50,9 +39,9 @@ xs = np.vstack((xs, xs))
 l2 = (bases[0].interpolator(y1)(xs)
       - bases[1].interpolator(y2)(xs)).sum()
 
-# if __name__ == "__main__":
-#     print('L2 error: {}'.format(l2))
-#     ax = bases[0].plot(y1, colorbar=True, shading='gouraud')
-#     m1.draw(ax=ax, color='ko')
-#     ax = bases[1].plot(y2, colorbar=True, shading='gouraud')
-#     m2.draw(ax=ax, color='ro').show()
+if __name__ == "__main__":
+    print('L2 error: {}'.format(l2))
+    ax = bases[0].plot(y1, colorbar=True, shading='gouraud')
+    m1.draw(ax=ax, color='ko')
+    ax = bases[1].plot(y2, colorbar=True, shading='gouraud')
+    m2.draw(ax=ax, color='ro').show()
