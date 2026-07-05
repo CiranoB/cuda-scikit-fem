@@ -1,4 +1,6 @@
 """Contact problem."""
+import os
+
 from skfem import *
 from skfem.autodiff import *
 from skfem.autodiff.helpers import *
@@ -6,12 +8,15 @@ from skfem.supermeshing import intersect, elementwise_quadrature
 import jax.numpy as jnp
 import numpy as np
 
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
 
 m1 = (MeshQuad
-      .init_tensor(np.linspace(0, 5, 60), np.linspace(0, 0.25, 5))
+      .init_tensor(np.linspace(0, 5, (60 - 1) * INCREASE_REFINE_MESH + 1), np.linspace(0, 0.25, (5 - 1) * INCREASE_REFINE_MESH + 1))
       .with_defaults())
 m2 = (MeshQuad
-      .init_tensor(np.linspace(0, 5, 51), np.linspace(-0.5, -0.25, 4))
+      .init_tensor(np.linspace(0, 5, (51 - 1) * INCREASE_REFINE_MESH + 1), np.linspace(-0.5, -0.25, (4 - 1) * INCREASE_REFINE_MESH + 1))
       .with_defaults())
 
 e1 = ElementVector(ElementQuad1())
@@ -111,7 +116,7 @@ pbasis2defo = Basis(m2defo, ElementQuad0())
 sigyy1 = pbasis1.project(np.array(sig1[1, 1]))
 sigyy2 = pbasis2.project(np.array(sig2[1, 1]))
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not SKIP_VISUALISATION:
 
     ax = m1defo.draw()
     m2defo.draw(ax=ax)

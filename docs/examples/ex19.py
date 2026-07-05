@@ -36,6 +36,7 @@ motivates factoring the matrix; e.g. with `scipy.sparse.linalg.splu`.
 
 
 """
+import os
 from math import ceil
 from typing import Iterator, Tuple
 
@@ -45,9 +46,11 @@ from scipy.sparse.linalg import splu
 from skfem import *
 from skfem.models.poisson import laplace, mass
 
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
 
 halfwidth = np.array([2., 3.])
-ncells = 2**3
+ncells = 2**3 * INCREASE_REFINE_MESH
 diffusivity = 5.
 
 mesh = MeshQuad.init_tensor(
@@ -88,7 +91,7 @@ def evolve(t: float,
 probe = basis.probes(np.zeros((mesh.dim(), 1)))
 
 
-if __name__ == '__main__':
+if __name__ == '__main__' and not SKIP_VISUALISATION:
 
     from argparse import ArgumentParser
     from pathlib import Path

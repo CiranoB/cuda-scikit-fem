@@ -1,5 +1,10 @@
+import os
+
 from skfem import *
 from skfem.helpers import dot, grad
+
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
 
 # # enable additional mesh validity checks, sacrificing performance
 # import logging
@@ -7,7 +12,7 @@ from skfem.helpers import dot, grad
 # logging.getLogger('skfem').setLevel(logging.DEBUG)
 
 # create the mesh
-m = MeshTri().refined(6)
+m = MeshTri().refined(6 + INCREASE_REFINE_MESH)
 # or, with your own points and cells:
 # m = MeshTri(points, cells)
 # or, load from file
@@ -40,5 +45,5 @@ def visualize():
     from skfem.visuals.matplotlib import plot
     return plot(m, x, shading='gouraud', colorbar=True)
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not SKIP_VISUALISATION:
     visualize().show()

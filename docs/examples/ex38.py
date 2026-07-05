@@ -16,6 +16,7 @@ Turmetov, & Torebek 2015).
 
 
 """
+import os
 from functools import partial
 from pathlib import Path
 
@@ -24,6 +25,9 @@ from skfem.models.poisson import laplace, mass, unit_load
 from skfem.io.json import from_file
 
 import numpy as np
+
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
 
 
 def greens(a: float, s: np.ndarray, x: np.ndarray) -> np.ndarray:
@@ -39,7 +43,7 @@ def greens(a: float, s: np.ndarray, x: np.ndarray) -> np.ndarray:
     return np.log(numerator / denominator) / 2 / np.pi
 
 
-basis = Basis(MeshTri.init_circle(5), ElementTriP2())
+basis = Basis(MeshTri.init_circle(5 + INCREASE_REFINE_MESH), ElementTriP2())
 source = np.array([0.3, 0.2])
 
 A = asm(laplace, basis)
@@ -62,4 +66,5 @@ def visualize():
 
 if __name__ == "__main__":
     print("L2 error:", l2error)
-    visualize().show()
+    if not SKIP_VISUALISATION:
+        visualize().show()

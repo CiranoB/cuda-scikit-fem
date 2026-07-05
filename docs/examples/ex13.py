@@ -17,14 +17,19 @@ so the conductance (for unit potential difference and conductivity) is
 
 """
 
+import os
+
 from skfem import *
 from skfem.models.poisson import laplace, mass
 from skfem.io import from_meshio
 
 import numpy as np
 
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
 radii = [1., 2.]
-lcar = .1
+lcar = .1 / INCREASE_REFINE_MESH
 
 mesh = (MeshTri
         .init_tensor(np.linspace(*radii, 1 + int(np.diff(radii)[0] / lcar)),
@@ -71,4 +76,5 @@ if __name__ == '__main__':
     print('L2 error:', error_L2)
     print('conductance:', conductance)
     print('Current in through ports:', current)
-    visualize().show()
+    if not SKIP_VISUALISATION:
+        visualize().show()

@@ -1,12 +1,17 @@
 """Projection between two meshes using supermesh in 1D."""
 
+import os
+
 import numpy as np
 from skfem import *
 from skfem.supermeshing import intersect, elementwise_quadrature
 
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
 
-m1 = MeshLine(np.linspace(1, 10, 20))
-m2 = MeshLine(np.logspace(0, 1, 10))
+
+m1 = MeshLine(np.linspace(1, 10, (20 - 1) * INCREASE_REFINE_MESH + 1))
+m2 = MeshLine(np.logspace(0, 1, (10 - 1) * INCREASE_REFINE_MESH + 1))
 e1 = ElementLineP1()
 e2 = ElementLineP1()
 
@@ -39,7 +44,8 @@ l2 = .09 * (bases[0].interpolator(y1)(np.linspace(1, 10, 100)[None])
 
 if __name__ == "__main__":
     print('L2 error: {}'.format(l2))
-    ax = bases[0].plot(y1, color='ko-')
-    m1.draw(ax=ax, color='ko')
-    m2.draw(ax=ax, color='ro')
-    bases[1].plot(y2, color='ro:', ax=ax).show()
+    if not SKIP_VISUALISATION:
+        ax = bases[0].plot(y1, color='ko-')
+        m1.draw(ax=ax, color='ko')
+        m2.draw(ax=ax, color='ro')
+        bases[1].plot(y2, color='ro:', ax=ax).show()

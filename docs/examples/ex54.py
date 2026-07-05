@@ -4,11 +4,16 @@ This is a problem with mild nonlinearity for testing the distributed
 solver.
 
 """
+import os
+
 from skfem import *
 from skfem.autodiff import *
 from skfem.autodiff.helpers import *
 import numpy as np
 import petsc4py.PETSc as petsc
+
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
 
 
 comm = petsc.COMM_WORLD
@@ -17,9 +22,9 @@ comm = petsc.COMM_WORLD
 @Dofs.decompose(comm)
 def builder():
     m = MeshHex.init_tensor(
-        np.linspace(0, 5, 20),
-        np.linspace(0, 1, 6),
-        np.linspace(0, 1, 6),
+        np.linspace(0, 5, (20 - 1) * INCREASE_REFINE_MESH + 1),
+        np.linspace(0, 1, (6 - 1) * INCREASE_REFINE_MESH + 1),
+        np.linspace(0, 1, (6 - 1) * INCREASE_REFINE_MESH + 1),
     ).refined().with_defaults()
     dofs = Dofs(m, ElementHex1())
     return m, dofs
@@ -83,5 +88,6 @@ for itr in range(100):
     x += 0.95 * dx
 
 
-m.save('{}_ex52.vtk'.format(comm.rank), point_data={'x': x})
+if not SKIP_VISUALISATION:
+    m.save('{}_ex52.vtk'.format(comm.rank), point_data={'x': x})
 print("maximum value: {}".format(np.max(x)))

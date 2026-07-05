@@ -3,13 +3,18 @@ r"""Linear elasticity.
 This example solves the linear elasticity problem using trilinear elements.
 
 """
+import os
+
 import numpy as np
 from skfem import *
 from skfem.helpers import ddot, sym_grad, eye, trace
 from skfem.models.elasticity import lame_parameters
 
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
 
-m = MeshHex().refined(3).with_defaults()
+
+m = MeshHex().refined(3 + INCREASE_REFINE_MESH).with_defaults()
 e = ElementVector(ElementHex1())
 basis = Basis(m, e, intorder=3)
 
@@ -36,7 +41,7 @@ u = solve(*condense(K, x=u, D=basis.get_dofs({'left', 'right'})))
 sf = 1.0
 m = m.translated(sf * u[basis.nodal_dofs])
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not SKIP_VISUALISATION:
     from os.path import splitext
     from sys import argv
 

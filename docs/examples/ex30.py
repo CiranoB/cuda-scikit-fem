@@ -53,6 +53,8 @@ central deflection is known to be approximately 0.162/128 [LOVE]_.
 .. [LOVE] Love, A. E. H. (1944). *A Treatise on the Mathematical Theory of Elasticity.* Dover
 
 """
+import os
+
 from skfem import *
 from skfem.models.poisson import vector_laplace, laplace, mass
 from skfem.models.general import divergence, rot
@@ -61,7 +63,10 @@ import numpy as np
 from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import LinearOperator, minres
 
-mesh = MeshQuad.init_tensor(*(np.linspace(-.5, .5, 2**6),)*2)
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
+mesh = MeshQuad.init_tensor(*(np.linspace(-.5, .5, (2**6 - 1) * INCREASE_REFINE_MESH + 1),)*2)
 
 element = {'u': ElementVector(ElementQuad2()),
            'p': ElementQuad1()}
@@ -126,11 +131,12 @@ if __name__ == '__main__':
 
     print(psi0)
 
-    name = splitext(argv[0])[0]
-    plot(mesh, pressure, colorbar=True).get_figure().savefig(
-        f'{name}_pressure.png')
+    if not SKIP_VISUALISATION:
+        name = splitext(argv[0])[0]
+        plot(mesh, pressure, colorbar=True).get_figure().savefig(
+            f'{name}_pressure.png')
 
-    ax = draw(mesh)
-    ax.tricontour(Triangulation(*mesh.p, mesh.to_meshtri().t.T),
-                  psi[basis['psi'].nodal_dofs.flatten()])
-    ax.get_figure().savefig(f'{name}_stream-lines.png')
+        ax = draw(mesh)
+        ax.tricontour(Triangulation(*mesh.p, mesh.to_meshtri().t.T),
+                      psi[basis['psi'].nodal_dofs.flatten()])
+        ax.get_figure().savefig(f'{name}_stream-lines.png')

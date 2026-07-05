@@ -17,6 +17,7 @@ problem, the maximum of the solution (normalized by the area) is the
 evaluated by interpolation.
 
 """
+import os
 from pathlib import Path
 
 from skfem import *
@@ -25,7 +26,10 @@ from skfem.io.json import from_file
 
 import numpy as np
 
-m = MeshTri.init_circle(4)
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
+m = MeshTri.init_circle(4 + INCREASE_REFINE_MESH)
 
 basis = Basis(m, ElementTriP2())
 
@@ -46,4 +50,5 @@ if __name__ == '__main__':
     print('area = {:.4f} (exact = {:.4f})'.format(area, np.pi))
     print('k = {:.5f} (exact = 1/8/pi = {:.5f})'.format(k, 1/np.pi/8))
     print("k' = {:.5f} (exact = 1/4/pi = {:.5f})".format(k1, 1/np.pi/4))
-    visualize().show()
+    if not SKIP_VISUALISATION:
+        visualize().show()

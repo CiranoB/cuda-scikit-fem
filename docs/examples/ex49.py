@@ -1,13 +1,18 @@
 """Projection between two meshes using supermesh in 2D."""
 
+import os
+
 import numpy as np
 from skfem import *
 from skfem.supermeshing import intersect, elementwise_quadrature
 
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
 
-m1 = MeshTri.init_tensor(np.linspace(0, 1, 4),
-                         np.linspace(0, 1, 4))
-m2 = MeshQuad().refined(2)
+
+m1 = MeshTri.init_tensor(np.linspace(0, 1, (4 - 1) * INCREASE_REFINE_MESH + 1),
+                         np.linspace(0, 1, (4 - 1) * INCREASE_REFINE_MESH + 1))
+m2 = MeshQuad().refined(2 + INCREASE_REFINE_MESH)
 e1 = ElementTriP2()
 e2 = ElementQuad2()
 
@@ -41,7 +46,8 @@ l2 = (bases[0].interpolator(y1)(xs)
 
 if __name__ == "__main__":
     print('L2 error: {}'.format(l2))
-    ax = bases[0].plot(y1, colorbar=True, shading='gouraud')
-    m1.draw(ax=ax, color='ko')
-    ax = bases[1].plot(y2, colorbar=True, shading='gouraud')
-    m2.draw(ax=ax, color='ro').show()
+    if not SKIP_VISUALISATION:
+        ax = bases[0].plot(y1, colorbar=True, shading='gouraud')
+        m1.draw(ax=ax, color='ko')
+        ax = bases[1].plot(y2, colorbar=True, shading='gouraud')
+        m2.draw(ax=ax, color='ro').show()

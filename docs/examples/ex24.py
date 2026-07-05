@@ -11,6 +11,7 @@ one step-length upstream and 35 downstream.
 
 """
 
+import os
 from pathlib import Path
 import numpy as np
 
@@ -19,7 +20,11 @@ from skfem.models.poisson import vector_laplace, laplace
 from skfem.models.general import divergence, rot
 from skfem.io.json import from_file
 
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
 mesh = from_file(Path(__file__).parent / 'meshes' / 'backward-facing_step.json')
+mesh = mesh.refined(INCREASE_REFINE_MESH)
 
 element = {'u': ElementVector(ElementTriP2()),
            'p': ElementTriP1()}
@@ -57,7 +62,7 @@ vorticity = asm(rot, basis['psi'], w=basis['u'].interpolate(velocity))
 psi = solve(*condense(A, vorticity, D=basis['psi'].get_dofs('floor')))
 
 
-if __name__ == '__main__':
+if __name__ == '__main__' and not SKIP_VISUALISATION:
 
     from functools import partial
     from os.path import splitext

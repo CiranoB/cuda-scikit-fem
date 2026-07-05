@@ -48,6 +48,7 @@ then be passed to the MINRES sparse iterative solver from SciPy.
 
 
 """
+import os
 from typing import NamedTuple
 
 from skfem import *
@@ -58,6 +59,9 @@ from skfem.models.general import divergence
 import numpy as np
 from scipy.sparse import bmat, spmatrix
 from scipy.sparse.linalg import LinearOperator, minres
+
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
 
 
 try:
@@ -98,6 +102,7 @@ class Sphere(NamedTuple):
 
 ball = Sphere()
 mesh = ball.mesh()
+mesh = mesh.refined(INCREASE_REFINE_MESH)
 
 element = {'u': ElementVector(ElementTetP2()),
            'p': ElementTetP1()}
@@ -150,6 +155,7 @@ if __name__ == '__main__':
 
     print('L2 error in pressure:', l2error_p)
 
-    mesh.save(Path(__file__).with_suffix('.vtk'),
-              {'velocity': velocity[basis['u'].nodal_dofs].T,
-               'pressure': pressure})
+    if not SKIP_VISUALISATION:
+        mesh.save(Path(__file__).with_suffix('.vtk'),
+                  {'velocity': velocity[basis['u'].nodal_dofs].T,
+                   'pressure': pressure})

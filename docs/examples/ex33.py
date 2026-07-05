@@ -12,14 +12,19 @@ n|_{\partial \Omega} = 0` using the lowest order Nédélec edge element.
    The loading is from https://www.dealii.org/reports/nedelec/nedelec.pdf.
 
 """
+import os
+
 import numpy as np
 
 from skfem import *
 
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
 m = MeshTet.init_tensor(
-    np.linspace(-1, 1, 15),
-    np.linspace(-1, 1, 15),
-    np.linspace(-1, 1, 15)
+    np.linspace(-1, 1, (15 - 1) * INCREASE_REFINE_MESH + 1),
+    np.linspace(-1, 1, (15 - 1) * INCREASE_REFINE_MESH + 1),
+    np.linspace(-1, 1, (15 - 1) * INCREASE_REFINE_MESH + 1)
 )
 e = ElementTetN0()
 basis = Basis(m, e)
@@ -53,7 +58,7 @@ x = solve(*condense(A, f, D=D))
 ybasis = basis.with_element(ElementVector(ElementTetP1()))
 y = ybasis.project(basis.interpolate(x))
 
-if __name__ == '__main__':
+if __name__ == '__main__' and not SKIP_VISUALISATION:
 
     from os.path import splitext
     from sys import argv

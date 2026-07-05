@@ -1,11 +1,16 @@
 """Mixed Poisson equation and Raviart-Thomas basis"""
 
+import os
+
 import numpy as np
 from skfem import *
 from skfem.helpers import dot, div
 
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
 
-p = np.linspace(0, 1, 10)
+
+p = np.linspace(0, 1, (10 - 1) * INCREASE_REFINE_MESH + 1)
 m = MeshTet.init_tensor(*(p,) * 3)
 
 e = ElementTetRT1() * ElementTetP0()
@@ -33,5 +38,5 @@ x = solve(A, b)
 (sigma, rtbasis), (u, ubasis) = basis.split(x)
 M, X = ubasis.refinterp(u, Nrefs=0)
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not SKIP_VISUALISATION:
     M.save('ex37.vtk', {'sol': X})

@@ -60,6 +60,8 @@ for the problem is loaded from an external file *beams.msh*, which is
 included in the source code distribution.
 
 """
+import os
+
 from skfem import *
 from skfem.models.elasticity import linear_elasticity,\
                                     lame_parameters
@@ -67,7 +69,11 @@ import numpy as np
 
 from pathlib import Path
 
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
 m = MeshTet.load(Path(__file__).parent / 'meshes' / 'beams.msh')
+m = m.refined(INCREASE_REFINE_MESH)
 e1 = ElementTetP2()
 e = ElementVector(e1)
 
@@ -89,7 +95,7 @@ L, x = solve(
     *condense(K, M, D=ib.get_dofs("fixed")), solver=solver_eigen_scipy_sym()
 )
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not SKIP_VISUALISATION:
     from skfem.visuals.matplotlib import draw, show
     sf = 10.0
     m.translated(sf * x[ib.nodal_dofs, 0]).draw().show()

@@ -15,6 +15,8 @@ accessed inside the bilinear form as `w.x[0]`.
 
 """
 
+import os
+
 import numpy as np
 from scipy.sparse.linalg import eigsh
 from scipy.special import legendre
@@ -23,7 +25,10 @@ from skfem import *
 from skfem.helpers import d, dot
 from skfem.models.poisson import mass
 
-x = np.linspace(-1, 1)
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
+x = np.linspace(-1, 1, (50 - 1) * INCREASE_REFINE_MESH + 1)
 m = MeshLine(x)
 e = ElementLineP1()
 basis = Basis(m, e)
@@ -41,7 +46,7 @@ ks, u = eigsh(L, M=M, sigma=0.)
 u /= u[basis.get_dofs().nodal["u"][-1], :]
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not SKIP_VISUALISATION:
     from matplotlib.pyplot import subplots, show
     fig, ax = subplots()
     for n, (k, u) in enumerate(zip(ks, u.T)):

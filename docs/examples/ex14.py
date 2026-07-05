@@ -20,12 +20,17 @@ recommended as more general.
 
 """
 
+import os
+
 from skfem import *
 from skfem.models.poisson import laplace
 
 import numpy as np
 
-m = MeshTri().refined(4)
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
+m = MeshTri().refined(4 + INCREASE_REFINE_MESH)
 
 e = ElementTriP2()
 basis = Basis(m, e)
@@ -54,4 +59,5 @@ def visualize():
 if __name__ == "__main__":
     print('||grad u||**2 = {:f} (exact = 8/3 = {:f})'
           .format(u @ A @ u, 8/3))
-    visualize().show()
+    if not SKIP_VISUALISATION:
+        visualize().show()

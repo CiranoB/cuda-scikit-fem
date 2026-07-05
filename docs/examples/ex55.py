@@ -83,14 +83,20 @@ However, the deformation gradient is always computed w.r.t. the reference config
 and interpolate these gradients by the total deformation :math:`u` w.r.t. the initial mesh and basis in every iteration.
 
 """
+import os
+
 import numpy as np
 from skfem import *
 from skfem.helpers import grad, identity, ddot, det, transpose, inv, trace, mul
+
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
 # note: rough mesh to make tests fast
 mesh = MeshHex.init_tensor(
-    np.linspace(0, 1, 10),
-    np.linspace(-.1, .1, 3),
-    np.linspace(-.1, .1, 3),
+    np.linspace(0, 1, (10 - 1) * INCREASE_REFINE_MESH + 1),
+    np.linspace(-.1, .1, (3 - 1) * INCREASE_REFINE_MESH + 1),
+    np.linspace(-.1, .1, (3 - 1) * INCREASE_REFINE_MESH + 1),
 ).with_boundaries({
     'left': lambda x: x[0] == 0.,
     'right': lambda x: x[0] == 1.,
@@ -160,7 +166,7 @@ for step in range(nsteps):
         print(1 + iteration, norm_du)
         if norm_du < tol: break
 
-if __name__ == '__main__':
+if __name__ == '__main__' and not SKIP_VISUALISATION:
     import vedo
     p = (mesh.translated(u[basis.nodal_dofs])
              .draw('vedo', point_data={'uy': u[basis.nodal_dofs[1]]}))

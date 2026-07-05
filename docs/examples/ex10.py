@@ -6,8 +6,12 @@ This example solves the nonlinear minimal surface problem using Newton's method.
 from skfem import *
 from skfem.helpers import grad, dot
 import numpy as np
+import os
 
-m = MeshTri().refined(5)
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
+m = MeshTri().refined(5 + INCREASE_REFINE_MESH)
 
 
 @BilinearForm
@@ -45,7 +49,7 @@ for itr in range(100):
         print(np.linalg.norm(x - x_prev))
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not SKIP_VISUALISATION:
     from skfem.visuals.matplotlib import plot3, show
     plot3(m, x)
     show()

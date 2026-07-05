@@ -25,6 +25,7 @@ For comparison purposes, the exact solution at the origin is
 
 
 """
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -35,11 +36,15 @@ from skfem.helpers import dot, grad
 from skfem.models.poisson import mass, unit_load
 from skfem.io.json import from_file
 
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
 joule_heating = 5.
 heat_transfer_coefficient = 7.
 thermal_conductivity = {'core': 101.,  'annulus': 11.}
 
 mesh = from_file(Path(__file__).parent / 'meshes' / 'disk.json')
+mesh = mesh.refined(INCREASE_REFINE_MESH)
 radii = sorted([np.linalg.norm(mesh.p[:, mesh.t[:, s]], axis=0).max() for s in mesh.subdomains.values()])
 
 
@@ -90,7 +95,7 @@ T0 = {
 }
 
 
-if __name__ == '__main__':
+if __name__ == '__main__' and not SKIP_VISUALISATION:
 
     from os.path import splitext
     from sys import argv

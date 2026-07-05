@@ -37,8 +37,13 @@ import numpy as np
 from scipy.sparse import spmatrix
 from scipy.sparse.linalg import LinearOperator
 
+import os
 
-p = np.linspace(0, 1, 16)
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
+
+p = np.linspace(0, 1, (16 - 1) * INCREASE_REFINE_MESH + 1)
 m = MeshTet.init_tensor(*(p,) * 3)
 basis = Basis(m, ElementTetP1())
 
@@ -85,7 +90,7 @@ for pc in preconditioners:
     x[I] = solve(Aint, bint, solver=solver_iter_pcg(verbose=True, M=pc))
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not SKIP_VISUALISATION:
     from os.path import splitext
     from sys import argv
 

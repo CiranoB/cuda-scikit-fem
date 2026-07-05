@@ -6,6 +6,8 @@ They are useful also when solving variational inequalities such as
 
 """
 
+import os
+
 import numpy as np
 from skfem import *
 from skfem.supermeshing import intersect, elementwise_quadrature
@@ -15,13 +17,17 @@ from skfem.helpers import dot, sym_grad, jump, mul
 from skfem.io.json import from_file
 from pathlib import Path
 
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
 
 # create meshes
 mesh_file = Path(__file__).parent / 'meshes' / 'ex04_mesh.json'
 m1 = from_file(mesh_file)
+m1 = m1.refined(INCREASE_REFINE_MESH)
 m2 = (
     (MeshLine(np.linspace(1, 2, 6)) * MeshLine(np.linspace(-1, 1, 10)))
-    .refined()
+    .refined(1 + INCREASE_REFINE_MESH)
     .with_boundaries({
         'contact': lambda x: x[0] == 1.0,
         'dirichlet': lambda x: x[0] == 2.0,
@@ -155,5 +161,5 @@ def visualize():
     return ax
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not SKIP_VISUALISATION:
     visualize().show()

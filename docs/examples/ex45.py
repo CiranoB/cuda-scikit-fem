@@ -6,13 +6,18 @@ This example solves the minimal surface problem from example 10 using automatic
 differentation in order to derive the tangent system for Newton's method.
 
 """
+import os
+
 from skfem import *
 from skfem.autodiff import NonlinearForm
 from skfem.autodiff.helpers import grad, dot
 import numpy as np
 import jax.numpy as jnp
 
-m = MeshTri().refined(5)
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
+m = MeshTri().refined(5 + INCREASE_REFINE_MESH)
 
 
 @NonlinearForm(hessian=True)
@@ -34,7 +39,7 @@ for itr in range(100):
     if __name__ == "__main__":
         print(res)
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not SKIP_VISUALISATION:
     from skfem.visuals.matplotlib import plot3, show
     plot3(m, x)
     show()

@@ -12,12 +12,17 @@ for each element :math:`K`, and
 for each edge :math:`E`.
 
 """
+import os
+
 from skfem import *
 from skfem.models.poisson import laplace
 from skfem.helpers import grad
 import numpy as np
 
-m = MeshTri.init_lshaped().refined(2)
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
+m = MeshTri.init_lshaped().refined(2 + INCREASE_REFINE_MESH)
 e = ElementTriP1()
 
 def load_func(x, y):
@@ -61,7 +66,7 @@ def eval_estimator(m, u):
     
     return eta_K + eta_E
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not SKIP_VISUALISATION:
     from skfem.visuals.matplotlib import draw
     draw(m)
 
@@ -84,5 +89,5 @@ def visualize():
     return plot(m, u, ax=ax, shading='gouraud', colorbar=True)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not SKIP_VISUALISATION:
     visualize().show()

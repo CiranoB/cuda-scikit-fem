@@ -218,6 +218,7 @@ potential difference across the capacitor. Thus
    C = \\frac{2 E}{V^2}.
 
 """
+import os
 from packaging import version
 from pathlib import Path
 
@@ -229,8 +230,12 @@ from skfem.io.json import from_file
 
 import numpy as np
 
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
 
 mesh = from_file(Path(__file__).parent / 'meshes' / 'ex35.json')
+mesh = mesh.refined(INCREASE_REFINE_MESH)
 
 element = ElementTriP1()
 
@@ -342,7 +347,7 @@ v = (1/np.sqrt(L*C)) / 299792458
 
 print(f'v={v} c')
 
-if __name__ == '__main__':
+if __name__ == '__main__' and not SKIP_VISUALISATION:
     from os.path import splitext
     from sys import argv
     from skfem.visuals.matplotlib import plot, savefig

@@ -8,6 +8,10 @@ from skfem.helpers import *
 import petsc4py.PETSc as petsc
 import time
 
+import os
+
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+
 
 comm = petsc.COMM_WORLD
 
@@ -22,7 +26,9 @@ def builder(nrefs):
     return m, dofs
 
 
-m, dofs = builder(6)
+# NOTE: builder() caches the mesh under a fixed filename; delete ex53mesh.*
+# to regenerate after changing INCREASE_REFINE_MESH.
+m, dofs = builder(6 + INCREASE_REFINE_MESH)
 
 
 basis = Basis(m, ElementTetP1())

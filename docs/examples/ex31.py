@@ -9,9 +9,14 @@ mapping via biquadratic basis and finite element approximation using fifth-order
 quadrilaterals.
 
 """
+import os
+
 from skfem import *
 from skfem.models.poisson import laplace, mass
 import numpy as np
+
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
 
 
 p = np.array([[0.  ,  1.  ,  1.  ,  0.  ,  0.5 ,  0.  ,  1.  ,  0.5 ,  0.5 ,
@@ -32,6 +37,7 @@ t = np.array([[ 0,  4,  8,  5],
               [21, 22, 23, 24]])
 
 m = MeshQuad2(p, t)
+m = m.refined(INCREASE_REFINE_MESH)
 e = ElementQuadP(5)
 
 # create mapping for the finite element approximation and assemble
@@ -42,7 +48,7 @@ M = asm(mass, basis)
 
 L, x = solve(*condense(A, M, D=basis.get_dofs()), solver=solver_eigen_scipy_sym(k=8))
 
-if __name__ == '__main__':
+if __name__ == '__main__' and not SKIP_VISUALISATION:
 
     from os.path import splitext
     from sys import argv

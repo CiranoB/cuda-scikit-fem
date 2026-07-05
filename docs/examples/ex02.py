@@ -46,14 +46,19 @@ using the `non-conforming Morley finite element
 is a piecewise quadratic :math:`C^0`-continuous element for biharmonic problems.
 
 """
+import os
+
 from skfem import *
 from skfem.models.poisson import unit_load
 from skfem.helpers import dd, ddot, trace, eye
 import numpy as np
 
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
 m = (MeshTri
      .init_symmetric()
-     .refined(3)
+     .refined(3 + INCREASE_REFINE_MESH)
      .with_defaults())
 basis = Basis(m, ElementTriMorley())
 
@@ -96,5 +101,5 @@ def visualize():
                 colorbar=True,
                 nrefs=2)
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not SKIP_VISUALISATION:
     visualize().show()

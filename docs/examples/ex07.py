@@ -3,8 +3,12 @@
 from skfem import *
 from skfem.helpers import grad, dot, jump
 from skfem.models.poisson import laplace, unit_load
+import os
 
-m = MeshTri.init_sqsymmetric().refined()
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
+m = MeshTri.init_sqsymmetric().refined(1 + INCREASE_REFINE_MESH)
 e = ElementTriDG(ElementTriP4())
 alpha = 1e-3
 
@@ -46,5 +50,5 @@ def visualize():
     ax = draw(M, boundaries_only=True)
     return plot(M, X, shading="gouraud", ax=ax, colorbar=True)
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not SKIP_VISUALISATION:
     visualize().show()
