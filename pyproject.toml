@@ -2,8 +2,16 @@
 name="cuda-scikit-fem"
 version = "0.1"
 requires-python = "~=3.13.0"
+dynamic = [
+    "authors",
+    "classifiers",
+    "description",
+    "license",
+    "optional-dependencies",
+    "readme",
+    "urls",
+]
 
-build-backend = "setuptools.build_meta"
 dependencies = [
     "setuptools>=42",
     "wheel",
@@ -25,3 +33,7 @@ dependencies = [
     "vedo>=2026.6.1",
     "snakeviz>=2.2.2",
 ]
+
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"

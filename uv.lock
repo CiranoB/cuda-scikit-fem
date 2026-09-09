@@ -116,7 +116,7 @@ wheels = [
 [[package]]
 name = "cuda-scikit-fem"
 version = "0.1"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "cupy" },
     { name = "flake8" },
@@ -139,6 +139,12 @@ dependencies = [
     { name = "wheel" },
 ]
 
+[package.optional-dependencies]
+all = [
+    { name = "matplotlib" },
+    { name = "meshio" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "cupy", specifier = "==14.1.1" },
@@ -147,7 +153,9 @@ requires-dist = [
     { name = "jax" },
     { name = "jaxlib" },
     { name = "matplotlib" },
+    { name = "matplotlib", marker = "extra == 'all'" },
     { name = "meshio" },
+    { name = "meshio", marker = "extra == 'all'", specifier = ">=4.0.4" },
     { name = "mypy" },
     { name = "numpy" },
     { name = "pep517" },
@@ -161,6 +169,7 @@ requires-dist = [
     { name = "vedo", specifier = ">=2026.6.1" },
     { name = "wheel" },
 ]
+provides-extras = ["all"]
 
 [[package]]
 name = "cupy"

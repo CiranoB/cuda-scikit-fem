@@ -13,8 +13,7 @@ set -euo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "${SCRIPT_DIR}/../.." && pwd)
 OUTPUT_ROOT=${OUTPUT_ROOT:-"${SCRIPT_DIR}/cg_all_examples_results"}
-RUN_ID="$(date +%Y%m%dT%H%M%S)-$(hostname -s)"
-RESULTS_DIR="${OUTPUT_ROOT}/${RUN_ID}"
+RESULTS_DIR="${OUTPUT_ROOT}/$(date +%Y%m%dT%H%M%S)"
 
 mkdir -p "${RESULTS_DIR}"
 
@@ -23,9 +22,7 @@ export PER_RUN_TIMEOUT_S=${PER_RUN_TIMEOUT_S:-1000}
 export CG_BENCHMARK_OUTPUT_DIR="${RESULTS_DIR}"
 
 {
-    printf 'run_id=%s\n' "${RUN_ID}"
     printf 'started_at=%s\n' "$(date --iso-8601=seconds)"
-    printf 'hostname=%s\n' "$(hostname)"
     printf 'per_run_timeout_s=%s\n' "${PER_RUN_TIMEOUT_S}"
     for variable in START_LEVEL MAX_LEVEL DOF_CAP SPSOLVE_CAP_S EXAMPLES \
         CG_CASE_TIMEOUT_S CG_MAXITER CG_BLOCK_SIZE CG_POLY_DEGREE TOLERANCE; do
