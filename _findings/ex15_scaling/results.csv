@@ -1,0 +1,6 @@
+level,ndofs,nnz,spsolve_cpu_s,transfer_s,tol,maxiter,none_status,none_total_s,none_converged,none_iters,none_relres,jacobi_status,jacobi_total_s,jacobi_converged,jacobi_iters,jacobi_relres,block_jacobi_status,block_jacobi_total_s,block_jacobi_converged,block_jacobi_iters,block_jacobi_relres,polynomial_status,polynomial_total_s,polynomial_converged,polynomial_iters,polynomial_relres
+1,8,22,0.000149,0.001138,1e-05,5000,converged,0.027188,1,4,1.371e-15,converged,0.028632,1,4,1.913e-15,converged,0.024769,1,1,3.277e-15,converged,0.004102,1,4,1.289e-15
+10,89,265,0.000193,0.001150,1e-05,5000,converged,0.031830,1,45,3.793e-13,converged,0.034292,1,45,3.306e-13,converged,0.034021,1,23,5.301e-08,converged,0.009011,1,19,6.486e-06
+100,899,2695,0.000445,0.001128,1e-05,5000,converged,0.101314,1,450,1.214e-10,converged,0.106501,1,450,1.150e-10,converged,0.065569,1,123,9.035e-06,converged,0.061104,1,166,9.314e-06
+1000,8999,26995,0.003417,0.001161,1e-05,5000,converged,0.784504,1,4500,8.948e-08,converged,0.774758,1,4500,6.512e-08,converged,0.318734,1,1051,8.142e-06,converged,0.553417,1,1606,6.472e-06
+10000,89999,269995,0.029401,0.004701,1e-05,5000,maxiter,0.903559,0,5000,1.886e+02,maxiter,0.978590,0,5000,1.886e+02,maxiter,1.582827,0,5000,1.172e+02,maxiter,1.917989,0,5000,1.090e+02

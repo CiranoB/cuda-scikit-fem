@@ -70,6 +70,142 @@ def get_ilu_preconditioner(A_gpu: cpx_csr) -> LinearOperator:
         return get_jacobi_preconditioner(A_gpu)
 
 
+def get_block_jacobi_preconditioner(
+    A_gpu: cpx_csr,
+    block_size: int = 8,
+) -> LinearOperator:
+    """Returns a block-Jacobi preconditioner as a LinearOperator.
+
+    The matrix is split into contiguous diagonal blocks of ``block_size`` and
+    every block is inverted once with a single batched dense inversion.  Each
+    application is therefore one parallel batched mat-vec, avoiding the
+    sequential triangular solves that make ILU-type preconditioners slow on the
+    GPU.  When ``block_size == 1`` this reduces to the Jacobi preconditioner.
+    """
+    n = A_gpu.shape[0]
+    bs = max(1, int(block_size))
+    n_blocks = (n + bs - 1) // bs
+    padded = n_blocks * bs
+
+    coo = A_gpu.tocoo()
+    coo.sum_duplicates()
+    same_block = (coo.row // bs) == (coo.col // bs)
+    blk = coo.row[same_block] // bs
+    local_row = coo.row[same_block] % bs
+    local_col = coo.col[same_block] % bs
+
+    blocks = cp.zeros((n_blocks, bs, bs), dtype=A_gpu.dtype)
+    blocks[blk, local_row, local_col] = coo.data[same_block]
+
+    # Padded rows of the trailing block act as identity so the batched inverse
+    # is well defined when ``n`` is not a multiple of ``block_size``.
+    if padded != n:
+        pad_local = cp.arange(n % bs, bs)
+        blocks[n_blocks - 1, pad_local, pad_local] = 1.0
+
+    # Keep degenerate (all-zero) diagonal entries invertible; a no-op for SPD
+    # matrices whose diagonal is strictly positive.
+    diag_idx = cp.arange(bs)
+    block_diag = blocks[:, diag_idx, diag_idx]
+    blocks[:, diag_idx, diag_idx] = cp.where(block_diag == 0, 1.0, block_diag)
+
+    blocks_inv = cp.linalg.inv(blocks)
+
+    def matvec(v):
+        vv = v if padded == n else cp.concatenate(
+            [v, cp.zeros(padded - n, dtype=v.dtype)])
+        yb = cp.einsum("kij,kj->ki", blocks_inv, vv.reshape(n_blocks, bs))
+        return yb.reshape(padded)[:n]
+
+    return LinearOperator(A_gpu.shape, matvec=matvec)
+
+
+def get_polynomial_preconditioner(
+    A_gpu: cpx_csr,
+    degree: int = 3,
+) -> LinearOperator:
+    """Returns a symmetric polynomial (Neumann series) preconditioner.
+
+    Approximates ``A^{-1}`` by a truncated Neumann series of the symmetrically
+    scaled operator ``B = D^{-1/2} A D^{-1/2}``, so that the preconditioner
+    stays symmetric (as required by CG).  Each application is a short sequence
+    of sparse mat-vecs and diagonal scalings with no triangular solves, which
+    maps well to the GPU.  ``degree == 0`` reduces to symmetric Jacobi.
+    """
+    diag = A_gpu.diagonal()
+    d_inv_sqrt = cp.where(diag > 0, 1.0 / cp.sqrt(diag), 1.0)
+    m = max(0, int(degree))
+
+    def matvec(v):
+        z = d_inv_sqrt * v
+        s = z
+        for _ in range(m):
+            # (I - B) s = s - D^{-1/2} A D^{-1/2} s
+            s = z + (s - d_inv_sqrt * (A_gpu @ (d_inv_sqrt * s)))
+        return d_inv_sqrt * s
+
+    return LinearOperator(A_gpu.shape, matvec=matvec)
+
+
+def get_block_jacobi_preconditioner_cpu(
+    A_cpu: sp.spmatrix,
+    block_size: int = 8,
+) -> spla.LinearOperator:
+    """CPU counterpart of :func:`get_block_jacobi_preconditioner`."""
+    n = A_cpu.shape[0]
+    bs = max(1, int(block_size))
+    n_blocks = (n + bs - 1) // bs
+    padded = n_blocks * bs
+
+    coo = A_cpu.tocoo()
+    coo.sum_duplicates()
+    same_block = (coo.row // bs) == (coo.col // bs)
+    blk = coo.row[same_block] // bs
+    local_row = coo.row[same_block] % bs
+    local_col = coo.col[same_block] % bs
+
+    blocks = np.zeros((n_blocks, bs, bs), dtype=A_cpu.dtype)
+    blocks[blk, local_row, local_col] = coo.data[same_block]
+
+    if padded != n:
+        pad_local = np.arange(n % bs, bs)
+        blocks[n_blocks - 1, pad_local, pad_local] = 1.0
+
+    diag_idx = np.arange(bs)
+    block_diag = blocks[:, diag_idx, diag_idx]
+    blocks[:, diag_idx, diag_idx] = np.where(block_diag == 0, 1.0, block_diag)
+
+    blocks_inv = np.linalg.inv(blocks)
+
+    def matvec(v):
+        vv = v if padded == n else np.concatenate(
+            [v, np.zeros(padded - n, dtype=v.dtype)])
+        yb = np.einsum("kij,kj->ki", blocks_inv, vv.reshape(n_blocks, bs))
+        return yb.reshape(padded)[:n]
+
+    return spla.LinearOperator(A_cpu.shape, matvec=matvec)
+
+
+def get_polynomial_preconditioner_cpu(
+    A_cpu: sp.spmatrix,
+    degree: int = 3,
+) -> spla.LinearOperator:
+    """CPU counterpart of :func:`get_polynomial_preconditioner`."""
+    diag = A_cpu.diagonal()
+    d_inv_sqrt = np.where(diag > 0, 1.0 / np.sqrt(diag), 1.0)
+    m = max(0, int(degree))
+
+    def matvec(v):
+        z = d_inv_sqrt * v
+        s = z
+        for _ in range(m):
+            # (I - B) s = s - D^{-1/2} A D^{-1/2} s
+            s = z + (s - d_inv_sqrt * (A_cpu @ (d_inv_sqrt * s)))
+        return d_inv_sqrt * s
+
+    return spla.LinearOperator(A_cpu.shape, matvec=matvec)
+
+
 # ---------------------------------------------------------------------------
 # GPU iterative solvers
 # ---------------------------------------------------------------------------
@@ -121,9 +257,9 @@ def solve_gmres_gpu(
 # ---------------------------------------------------------------------------
 
 @timing_decorator
-def solve_spsolve_gpu(A_gpu: cpx_csr, b_gpu: cp.ndarray, use_qr: bool = True) -> cp.ndarray:
+def solve_spsolve_gpu(A_gpu: cpx_csr, b_gpu: cp.ndarray) -> cp.ndarray:
     """Solves A x = b using cupyx direct sparse solver (GPU)."""
-    return cpx_spsolve(A_gpu, b_gpu, use_qr)
+    return cpx_spsolve(A_gpu, b_gpu)
 
 
 @timing_decorator

@@ -3,12 +3,13 @@ SciPy linear solvers."""
 
 from re import X
 import sys
+import inspect
 import logging
 import time
 from typing import Optional, Union, Tuple, Callable, Dict
 
 import numpy as np
-from skfem.sparse_solvers import load_to_gpu, read_from_gpu, solve_cg_cpu, solve_cg_gpu, solve_gmres_gpu, get_jacobi_preconditioner, get_jacobi_preconditioner_cpu, get_ilu_preconditioner, solve_spsolve_cpu, solve_spsolve_gpu, solve_superlu_gpu
+from skfem.sparse_solvers import load_to_gpu, read_from_gpu, solve_cg_cpu, solve_cg_gpu, solve_gmres_gpu, get_jacobi_preconditioner, get_jacobi_preconditioner_cpu, get_ilu_preconditioner, get_block_jacobi_preconditioner, get_polynomial_preconditioner, solve_spsolve_cpu, solve_spsolve_gpu, solve_superlu_gpu
 from skfem.solvers_aplicability import is_cg_compatible as check_cg_applicable, is_gmres_compatible as check_gmres_applicable
 import scipy.sparse as sp
 import scipy.sparse.csgraph as spg
@@ -125,36 +126,55 @@ def solver_eigen_scipy_sym(**kwargs) -> EigenSolver:
 TOLERANCE: float = float(os.getenv("TOLERANCE", 1e-5))
 
 
+def _gpu_solver_enabled(name: str) -> bool:
+    """Whether the GPU solver ``name`` is enabled via ``{name}_GPU_ENABLE``.
+
+    GPU solvers are opt-in: nothing is computed on the GPU unless the matching
+    environment variable is set to a truthy value (e.g. ``GMRES_GPU_ENABLE=1``).
+    """
+    return os.getenv(f"{name}_GPU_ENABLE", "0").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
+
+
+ # Compare results
+def compare(name, candidate, reference):
+    diff = np.abs(candidate - reference)
+    rel_err = diff / (np.abs(reference) + 1e-12)
+    print(f"[{name}] max abs diff: {diff.max():.6e}, "
+        f"mean abs diff: {diff.mean():.6e}, "
+        f"max rel error: {rel_err.max():.6e}")
+        
 def solve_multiple_solver(A, b, x_cpu):
     # CPU CG solver
-    x_cg_cpu = solve_cg_cpu(A, b, TOLERANCE)
-    x_cg_cpu_jacobi = solve_cg_cpu(A, b, TOLERANCE, M=get_jacobi_preconditioner_cpu(A))
+    # x_cg_cpu = solve_cg_cpu(A, b, TOLERANCE)
+    # x_cg_cpu_jacobi = solve_cg_cpu(A, b, TOLERANCE, M=get_jacobi_preconditioner_cpu(A))
 
     # Load to GPU
     A_gpu, b_gpu = load_to_gpu(A,b)
 
-    x_spsolve_gpu = None
-    # Solvers
-    if not bool(os.getenv("DISABLE_SPSOLVE_GPU", False)):
-        try:
-            x_gpu = solve_spsolve_gpu(A_gpu, b_gpu)
-            x_spsolve_gpu = read_from_gpu(x_gpu)
-            cp.get_default_memory_pool().free_all_blocks()
-            del x_gpu
-        except Exception:
-            os.environ["DISABLE_SPSOLVE_GPU"] = "1"
-            print("Skipping SPSOLVE GPU due memory constrains")
+    # x_spsolve_gpu = None
+    # # Solvers
+    # if not bool(os.getenv("DISABLE_SPSOLVE_GPU", False)):
+    #     try:
+    #         x_gpu = solve_spsolve_gpu(A_gpu, b_gpu)
+    #         x_spsolve_gpu = read_from_gpu(x_gpu)
+    #         cp.get_default_memory_pool().free_all_blocks()
+    #         del x_gpu
+    #     except Exception:
+    #         os.environ["DISABLE_SPSOLVE_GPU"] = "1"
+    #         print("Skipping SPSOLVE GPU due memory constrains")
 
-    x_superlu_gpu = None
-    if not bool(os.getenv("DISABLE_SUPERLU_GPU", False)):
-        try:
-            x_gpu = solve_superlu_gpu(A_gpu, b_gpu)
-            x_superlu_gpu = read_from_gpu(x_gpu)
-            cp.get_default_memory_pool().free_all_blocks()
-            del x_gpu
-        except Exception:
-            os.environ["DISABLE_SUPERLU_GPU"] = "1"
-            print("Skipping SPSOLVE GPU due memory constrains")
+    # x_superlu_gpu = None
+    # if not bool(os.getenv("DISABLE_SUPERLU_GPU", False)):
+    #     try:
+    #         x_gpu = solve_superlu_gpu(A_gpu, b_gpu)
+    #         x_superlu_gpu = read_from_gpu(x_gpu)
+    #         cp.get_default_memory_pool().free_all_blocks()
+    #         del x_gpu
+    #     except Exception:
+    #         os.environ["DISABLE_SUPERLU_GPU"] = "1"
+    #         print("Skipping SPSOLVE GPU due memory constrains")
 
     x_gpu = solve_cg_gpu(A_gpu, b_gpu, TOLERANCE)
     x_cg_no_prec = read_from_gpu(x_gpu)
@@ -167,26 +187,20 @@ def solve_multiple_solver(A, b, x_cpu):
     del x_gpu
 
 
-    # Compare results
-    def compare(name, candidate, reference):
-        diff = np.abs(candidate - reference)
-        rel_err = diff / (np.abs(reference) + 1e-12)
-        print(f"[{name}] max abs diff: {diff.max():.6e}, "
-            f"mean abs diff: {diff.mean():.6e}, "
-            f"max rel error: {rel_err.max():.6e}")
+   
 
-    if x_spsolve_gpu is not None:
-        compare("spsolve GPU vs CPU spsolve", x_spsolve_gpu, x_cpu)
-    else: 
-        print("Skipping SPSOLVE GPU comparison due memory constrains")
+    # if x_spsolve_gpu is not None:
+    #     compare("spsolve GPU vs CPU spsolve", x_spsolve_gpu, x_cpu)
+    # else: 
+    #     print("Skipping SPSOLVE GPU comparison due memory constrains")
 
-    if x_superlu_gpu is not None:
-        compare("SuperLU GPU vs CPU spsolve", x_superlu_gpu, x_cpu)
-    else: 
-        print("Skipping SUPERLU GPU comparison due memory constrains")
+    # if x_superlu_gpu is not None:
+    #     compare("SuperLU GPU vs CPU spsolve", x_superlu_gpu, x_cpu)
+    # else: 
+    #     print("Skipping SUPERLU GPU comparison due memory constrains")
 
-    compare("CG CPU vs CPU spsolve", x_cg_cpu, x_cpu)
-    compare("CG (Jacobi precond) CPU vs CPU spsolve", x_cg_cpu_jacobi, x_cpu)
+    # compare("CG CPU vs CPU spsolve", x_cg_cpu, x_cpu)
+    # compare("CG (Jacobi precond) CPU vs CPU spsolve", x_cg_cpu_jacobi, x_cpu)
     compare("CG (no precond) GPU vs CPU spsolve", x_cg_no_prec, x_cpu)
     compare("CG (Jacobi precond) GPU vs CPU spsolve", x_cg_jacobi, x_cpu)
             
@@ -194,22 +208,223 @@ def solve_multiple_solver(A, b, x_cpu):
     del A_gpu, b_gpu
     cp.get_default_memory_pool().free_all_blocks()
 
+def solve_gmres_solver(A, b, x_cpu):
+    # Load to GPU
+    A_gpu, b_gpu = load_to_gpu(A,b)
 
-def solver_direct_scipy(**kwargs):  
+    x_spsolve_gpu = None
+
+    x_gpu = solve_gmres_gpu(A_gpu,
+                            b_gpu,
+                            TOLERANCE,
+                            get_ilu_preconditioner(A_gpu)
+    )
+    x_gpu_gmres = read_from_gpu(x_gpu)
+    cp.get_default_memory_pool().free_all_blocks()
+    # del x_gpu
+
+    compare("GMRES CPU vs CPU spsolve", x_gpu_gmres, x_cpu)
+
+    # Cleanup
+    del A_gpu, b_gpu
+    cp.get_default_memory_pool().free_all_blocks()
+
+    return x_gpu_gmres
+
+
+# Registry of opt-in GPU solvers keyed by the prefix of their enable env var.
+# Each entry solves ``A x = b`` on the GPU and is only run when
+# ``{NAME}_GPU_ENABLE`` is truthy (see :func:`_gpu_solver_enabled`).
+_GPU_SOLVERS: Dict[str, Callable] = {
+    "SPSOLVE": lambda A_gpu, b_gpu: solve_spsolve_gpu(A_gpu, b_gpu),
+    "SUPERLU": lambda A_gpu, b_gpu: solve_superlu_gpu(A_gpu, b_gpu),
+    "CG": lambda A_gpu, b_gpu: solve_cg_gpu(
+        A_gpu, b_gpu, TOLERANCE, M=get_jacobi_preconditioner(A_gpu)),
+    "GMRES": lambda A_gpu, b_gpu: solve_gmres_gpu(
+        A_gpu, b_gpu, TOLERANCE, M=get_ilu_preconditioner(A_gpu)),
+}
+
+
+def run_enabled_gpu_solvers(A, b, x_cpu):
+    """Run each GPU solver whose ``{NAME}_GPU_ENABLE`` env var is truthy.
+
+    The system is uploaded to the GPU once and shared across the enabled
+    solvers.  Every enabled solver is timed (via the decorators in
+    ``sparse_solvers``) and its result compared against the CPU reference
+    ``x_cpu``.  Returns immediately without touching the GPU when nothing is
+    enabled.
+    """
+    enabled = [name for name in _GPU_SOLVERS if _gpu_solver_enabled(name)]
+    if not enabled:
+        return
+
+    A_gpu, b_gpu = load_to_gpu(A, b)
+    try:
+        for name in enabled:
+            x_gpu = _GPU_SOLVERS[name](A_gpu, b_gpu)
+            compare(f"{name} GPU vs CPU spsolve", read_from_gpu(x_gpu), x_cpu)
+            del x_gpu
+            cp.get_default_memory_pool().free_all_blocks()
+    finally:
+        del A_gpu, b_gpu
+        cp.get_default_memory_pool().free_all_blocks()
+
+
+# ---------------------------------------------------------------------------
+# CG preconditioner benchmark (opt-in via CG_PRECOND_BENCHMARK)
+# ---------------------------------------------------------------------------
+
+# GPU CG cases compared against the CPU spsolve reference, in report order.
+_CG_BENCH_CASES = ("none", "jacobi", "ilu0", "block_jacobi", "polynomial")
+
+
+class _CGBudgetExceeded(Exception):
+    """Internal signal that a CG case exceeded its per-case time budget."""
+
+# Only the first eligible linear solve per process is benchmarked so that
+# time-stepping / nonlinear examples are not measured on every internal solve.
+# The subprocess-per-run harness resets this flag naturally.
+_cg_bench_done = False
+
+
+def _cg_bench_enabled() -> bool:
+    """Whether the 5-case CG preconditioner benchmark is opted in."""
+    return os.getenv("CG_PRECOND_BENCHMARK", "0").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
+
+
+def _make_cg_preconditioner(case: str, A_gpu):
+    """Build the GPU preconditioner for a benchmark ``case`` (``None`` if any)."""
+    if case == "none":
+        return None
+    if case == "jacobi":
+        return get_jacobi_preconditioner(A_gpu)
+    if case == "ilu0":
+        return get_ilu_preconditioner(A_gpu)
+    if case == "block_jacobi":
+        return get_block_jacobi_preconditioner(
+            A_gpu, block_size=int(os.getenv("CG_BLOCK_SIZE", "8")))
+    if case == "polynomial":
+        return get_polynomial_preconditioner(
+            A_gpu, degree=int(os.getenv("CG_POLY_DEGREE", "3")))
+    raise ValueError(f"unknown CG benchmark case: {case}")
+
+
+def run_cg_preconditioner_benchmark(A, b, x_cpu, spsolve_cpu_s=-1.0):
+    """Benchmark GPU CG with several preconditioners against CPU spsolve.
+
+    Opt-in via ``CG_PRECOND_BENCHMARK``.  Uploads the condensed system once and,
+    for each preconditioner in :data:`_CG_BENCH_CASES`, times the end-to-end GPU
+    CG path (host->device transfer, preconditioner build, solve, device->host
+    readback) and reports convergence, the 2-norm relative residual, and the
+    difference from the CPU reference on machine-parseable ``[cgcase]`` lines.
+    Only the first eligible solve per process is measured.
+    """
+    global _cg_bench_done
+    if _cg_bench_done or not _cg_bench_enabled():
+        return
+
+    ndofs = A.shape[0]
+    if ndofs < int(os.getenv("CG_BENCH_MIN_DOFS", "1")):
+        return
+    _cg_bench_done = True
+
+    tol = TOLERANCE
+    maxiter = int(os.getenv("CG_MAXITER", "5000"))
+    bnorm = float(np.linalg.norm(b)) or 1.0
+    supports_cb = "callback" in inspect.signature(cg).parameters
+
+    # Warm up the CUDA context so ``transfer_s`` measures the host->device copy
+    # rather than one-time context initialization, which a real application
+    # pays once at start-up instead of on every solve.
+    _warm = cp.zeros(1) + 1
+    cp.cuda.Stream.null.synchronize()
+    del _warm
+
+    t0 = time.perf_counter()
+    A_gpu, b_gpu = load_to_gpu(A, b)
+    cp.cuda.Stream.null.synchronize()
+    transfer_s = time.perf_counter() - t0
+
+    print(f"[cgbench] ndofs={ndofs} nnz={int(A.nnz)} "
+          f"spsolve_cpu_s={spsolve_cpu_s:.6f} transfer_s={transfer_s:.6f} "
+          f"tol={tol:g} maxiter={maxiter}", flush=True)
+
+    budget = float(os.getenv("CG_CASE_TIMEOUT_S", "60"))
+    try:
+        for case in _CG_BENCH_CASES:
+            try:
+                t0 = time.perf_counter()
+                M = _make_cg_preconditioner(case, A_gpu)
+                cp.cuda.Stream.null.synchronize()
+                precond_s = time.perf_counter() - t0
+
+                state = {"iters": 0, "last_x": None, "start": 0.0}
+
+                def _cb(xk, _s=state):
+                    _s["iters"] += 1
+                    _s["last_x"] = xk
+                    if time.perf_counter() - _s["start"] > budget:
+                        raise _CGBudgetExceeded()
+
+                cg_kwargs = {"rtol": tol, "maxiter": maxiter, "M": M}
+                if supports_cb:
+                    cg_kwargs["callback"] = _cb
+
+                status = "converged"
+                state["start"] = time.perf_counter()
+                t0 = state["start"]
+                try:
+                    x_gpu, info = cg(A_gpu, b_gpu, **cg_kwargs)
+                    if info != 0:
+                        status = "maxiter"
+                except _CGBudgetExceeded:
+                    x_gpu = state["last_x"]
+                    status = "timeout"
+                cp.cuda.Stream.null.synchronize()
+                solve_s = time.perf_counter() - t0
+
+                t0 = time.perf_counter()
+                x_np = cp.asnumpy(x_gpu)
+                readback_s = time.perf_counter() - t0
+
+                total_s = transfer_s + precond_s + solve_s + readback_s
+                diff = np.abs(x_np - x_cpu)
+                relres = float(np.linalg.norm(A @ x_np - b) / bnorm)
+                print(f"[cgcase] case={case} status={status} "
+                      f"precond_s={precond_s:.6f} solve_s={solve_s:.6f} "
+                      f"readback_s={readback_s:.6f} total_s={total_s:.6f} "
+                      f"converged={int(status == 'converged')} "
+                      f"iters={state['iters'] if supports_cb else -1} "
+                      f"relres={relres:.3e} max_abs_diff={diff.max():.3e} "
+                      f"mean_abs_diff={diff.mean():.3e}", flush=True)
+
+                del M, x_gpu
+                cp.get_default_memory_pool().free_all_blocks()
+            except Exception as exc:
+                print(f"[cgcase] case={case} status=error "
+                      f"error={type(exc).__name__}", flush=True)
+                cp.get_default_memory_pool().free_all_blocks()
+    finally:
+        del A_gpu, b_gpu
+        cp.get_default_memory_pool().free_all_blocks()
+
+
+def solver_direct_scipy(**kwargs):
     def solver(A: sp.spmatrix, b: np.ndarray, **solve_time_kwargs):
-        print("A size: ", A.size)
         local_kwargs = kwargs.copy()
         local_kwargs.update(solve_time_kwargs)
-        
-        x = solve_spsolve_cpu(A, b)
-        # check_cg_applicable(A)
-        # check_gmres_applicable(A)
 
-        solve_multiple_solver(A, b, x)
-        
+        t_spsolve_start = time.perf_counter()
+        x = solve_spsolve_cpu(A, b)
+        spsolve_cpu_s = time.perf_counter() - t_spsolve_start
+
+        run_enabled_gpu_solvers(A, b, x)
+        run_cg_preconditioner_benchmark(A, b, x, spsolve_cpu_s=spsolve_cpu_s)
 
         return x
-        
+
     return solver
 
 

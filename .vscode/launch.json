@@ -12,13 +12,20 @@
             "console": "integratedTerminal",
             "env":{
                 "PYTHONPATH": "${workspaceFolder}",
-                "REFINED_TIMES": "3",
+                "INCREASE_REFINE_MESH": "3",
                 "HALF_PRECISION": "0",
-                "TOLERANCE": "1e-10"
+                // "TOLERANCE": "1e-10",
+                // GPU solvers are opt-in: set a flag to "1" to also run that
+                // solver on the GPU and compare it against the CPU spsolve.
+                "SPSOLVE_GPU_ENABLE": "0",
+                "SUPERLU_GPU_ENABLE": "0",
+                "CG_GPU_ENABLE": "0",
+                "GMRES_GPU_ENABLE": "1",
+                "SKIP_VISUALISATION": "1"
             },
             // "args":[
             //     ">",
-            //     "log2.log"
+            //     "ex33-multiplesolvers2.log"
             // ]
         },
         {

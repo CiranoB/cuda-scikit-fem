@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 dependencies = [
     "setuptools>=42",
     "wheel",
-    "cupy",
+    "cupy==14.1.1",
     "numpy",
     "scipy",
     "meshio",
@@ -22,7 +22,6 @@ dependencies = [
     "jaxlib",
     "pep517",
     "shapely",
-    "cupy>=14.0.1",
     "vedo>=2026.6.1",
     "snakeviz>=2.2.2",
 ]
