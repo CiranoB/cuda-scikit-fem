@@ -1,31 +1,46 @@
 """Waveguide cutoff analysis."""
 
+import os
+
 import numpy as np
-from cudaskfem import *
-from cudaskfem.helpers import *
+from skfem import *
+from skfem.helpers import *
+
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
 
 
-# three different mesh and element types
+# Four different mesh and element types
+
 mesh_elem = [
     (
-        MeshTri.init_tensor(np.linspace(0, 1, 40),
-                            np.linspace(0, .5, 20)),
-        ElementTriN1() * ElementTriP1(),
-    ),
-    (
-        MeshQuad.init_tensor(np.linspace(0, 1, 40) ** 0.9,
-                             np.linspace(0, .5, 20)),
+        MeshQuad.init_tensor(np.linspace(0, 1, (40 - 1) * INCREASE_REFINE_MESH + 1) ** 0.9,
+                             np.linspace(0, .5, (20 - 1) * INCREASE_REFINE_MESH + 1)),
         ElementQuadN1() * ElementQuad1(),
+        "2nd Order Bilinear"
     ),
     (
-        MeshTri.init_tensor(np.linspace(0, 1, 20),
-                            np.linspace(0, .5, 10)),
+        MeshTri.init_tensor(np.linspace(0, 1, (40 - 1) * INCREASE_REFINE_MESH + 1),
+                            np.linspace(0, .5, (20 - 1) * INCREASE_REFINE_MESH + 1)),
+        ElementTriN1() * ElementTriP1(),
+        "1st Order Nedelec"
+    ),
+    (
+        MeshTri.init_tensor(np.linspace(0, 1, (20 - 1) * INCREASE_REFINE_MESH + 1),
+                            np.linspace(0, .5, (10 - 1) * INCREASE_REFINE_MESH + 1)),
         ElementTriN2() * ElementTriP2(),
+        "2nd Order Nedelec"
+    ),
+    (
+        MeshTri.init_tensor(np.linspace(0, 1, (20 - 1) * INCREASE_REFINE_MESH + 1),
+                            np.linspace(0, .5, (10 - 1) * INCREASE_REFINE_MESH + 1)),
+        ElementTriN3() * ElementTriP3(),
+        "3rd Order Nedelec"
     ),
 ]
 
 
-for mesh, elem in mesh_elem:
+for mesh, elem, name in mesh_elem:
     basis = Basis(mesh, elem)
 
     epsilon = lambda x: 1. + 0. * x[0]
@@ -64,12 +79,13 @@ for mesh, elem in mesh_elem:
 
 
     if __name__ == "__main__":
+        print(f'{name}:')
         print('TE10 error: {}'.format(err1))
         print('TE01 error: {}'.format(err2))
         print('TE20 error: {}'.format(err3))
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not SKIP_VISUALISATION:
     import matplotlib.pyplot as plt
     fig, axs = plt.subplots(4, 1)
     for itr in range(4):

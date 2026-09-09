@@ -5,8 +5,8 @@ This script is used to generate the table in README.md.
 """
 from timeit import timeit
 import numpy as np
-from cudaskfem import *
-from cudaskfem.models.poisson import laplace, unit_load
+from skfem import *
+from skfem.models.poisson import laplace, unit_load
 
 
 def pre(N=3):

@@ -51,14 +51,18 @@ restricted to the elements belonging to a particular subdomain.
   Thermodynamics, Wicklow, Ireland.
 
 """
+import os
 from packaging import version
 from pathlib import Path
 
-from cudaskfem import *
-from cudaskfem.helpers import grad, dot
-from cudaskfem.models.poisson import unit_load
+from skfem import *
+from skfem.helpers import grad, dot
+from skfem.models.poisson import unit_load
 
 import numpy as np
+
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
 
 
 halfheight = 1.
@@ -70,6 +74,7 @@ kratio = 80. / (4.181 / 7.14)
 peclet = 357.
 
 mesh = Mesh.load(Path(__file__).parent / 'meshes' / 'ex28.msh')
+mesh = mesh.refined(INCREASE_REFINE_MESH)
 element = ElementTriP1()
 basis = {
     'heat': Basis(mesh, element),
@@ -134,9 +139,9 @@ exit_interface_temperature = {
     "exact": exact(length, -1.0),
 }
 
-if __name__ == '__main__':
+if __name__ == '__main__' and not SKIP_VISUALISATION:
     from pathlib import Path
-    from cudaskfem.visuals.matplotlib import plot, savefig
+    from skfem.visuals.matplotlib import plot, savefig
     from matplotlib.pyplot import subplots
 
     plot(mesh, temperature)

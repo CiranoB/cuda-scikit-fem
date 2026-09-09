@@ -5,3 +5,7 @@ __pycache__/
 *.egg-info/
 *.vtu
 *~
+*.log
+*.prof
+_thesis
+docs/examples/cg_all_examples_results/20260909T143729-ctw04834-Ubuntu/run.env

@@ -1,0 +1,46 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "env":{
+                "PYTHONPATH": "${workspaceFolder}",
+                "INCREASE_REFINE_MESH": "3",
+                "HALF_PRECISION": "0",
+                // "TOLERANCE": "1e-10",
+                // GPU solvers are opt-in: set a flag to "1" to also run that
+                // solver on the GPU and compare it against the CPU spsolve.
+                "SPSOLVE_GPU_ENABLE": "0",
+                "SUPERLU_GPU_ENABLE": "0",
+                "CG_GPU_ENABLE": "0",
+                "GMRES_GPU_ENABLE": "1",
+                "SKIP_VISUALISATION": "1"
+            },
+            // "args":[
+            //     ">",
+            //     "ex33-multiplesolvers2.log"
+            // ]
+        },
+        {
+            "name": "Profiler: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "cProfile",
+            "args": ["-o", "program.prof", "${file}"],
+            "console": "integratedTerminal",
+            "env":{
+                "PYTHONPATH": "${workspaceFolder}",
+                // "REFINED_TIMES": "3",
+                // "HALF_PRECISION": "0",
+                // "TOLERANCE": "1e-10"
+            }
+        }
+    ]
+}

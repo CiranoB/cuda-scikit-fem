@@ -23,12 +23,17 @@ The novelty here is that the temperature is defined as a finite element function
 throughout the mesh (:math:`r < b`) but only solved on a subdomain.
 
 """
-from cudaskfem import *
-from cudaskfem.models.poisson import laplace, unit_load
+import os
+
+from skfem import *
+from skfem.models.poisson import laplace, unit_load
 
 import numpy as np
 
+# NOTE: the mesh (and thus INCREASE_REFINE_MESH scaling) is inherited from ex17.
 from .ex17 import mesh, basis, radii, joule_heating, thermal_conductivity
+
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
 
 
 annulus = np.unique(basis.element_dofs[:, mesh.subdomains['annulus']])
@@ -47,10 +52,10 @@ T0 = {
 }
 
 
-if __name__ == '__main__':
+if __name__ == '__main__' and not SKIP_VISUALISATION:
     from os.path import splitext
     from sys import argv
-    from cudaskfem.visuals.matplotlib import draw, plot
+    from skfem.visuals.matplotlib import draw, plot
 
     ax = draw(mesh)
     plot(mesh, temperature[basis.nodal_dofs.flatten()],

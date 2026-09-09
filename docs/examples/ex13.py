@@ -17,17 +17,22 @@ so the conductance (for unit potential difference and conductivity) is
 
 """
 
-from cudaskfem import *
-from cudaskfem.models.poisson import laplace, mass
-from cudaskfem.io import from_meshio
+import os
+
+from skfem import *
+from skfem.models.poisson import laplace, mass
+from skfem.io import from_meshio
 
 import numpy as np
 
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
 radii = [1., 2.]
-lcar = .1
+lcar = .1 / INCREASE_REFINE_MESH
 
 mesh = (MeshTri
-        .init_tensor(np.linspace(*radii, 1 + int(np.diff(radii) / lcar)),
+        .init_tensor(np.linspace(*radii, 1 + int(np.diff(radii)[0] / lcar)),
                      np.linspace(0, np.pi/2, 1 + int(3*np.pi/4 / lcar)))
         .with_boundaries({
             'ground': lambda xi: xi[1] == 0.,
@@ -54,7 +59,7 @@ conductance = {'skfem': u @ A @ u,
 
 @Functional
 def port_flux(w):
-    from cudaskfem.helpers import dot, grad
+    from skfem.helpers import dot, grad
     return dot(w.n, grad(w['u']))
 
 
@@ -64,11 +69,12 @@ for port, boundary in mesh.boundaries.items():
     current[port] = asm(port_flux, fbasis, u=u)
 
 def visualize():
-    from cudaskfem.visuals.matplotlib import plot, show
+    from skfem.visuals.matplotlib import plot, show
     return plot(basis, u, shading='gouraud', colorbar=True)
 
 if __name__ == '__main__':
     print('L2 error:', error_L2)
     print('conductance:', conductance)
     print('Current in through ports:', current)
-    visualize().show()
+    if not SKIP_VISUALISATION:
+        visualize().show()

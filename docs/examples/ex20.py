@@ -27,15 +27,20 @@ polynomial solution with circular stream-lines:
 
 """
 
-from cudaskfem import *
-from cudaskfem.models.poisson import unit_load
-from cudaskfem.models.general import curluv
-from cudaskfem.helpers import ddot, dd
+import os
+
+from skfem import *
+from skfem.models.poisson import unit_load
+from skfem.models.general import curluv
+from skfem.helpers import ddot, dd
 
 import numpy as np
 
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
 
-mesh = MeshTri.init_circle(4)
+
+mesh = MeshTri.init_circle(4 + INCREASE_REFINE_MESH)
 element = ElementTriMorley()
 mapping = MappingAffine(mesh)
 ib = Basis(mesh, element, mapping, 2)
@@ -60,18 +65,19 @@ velocity = asm(
 if __name__ == "__main__":
     from os.path import splitext
     from sys import argv
-    from cudaskfem.visuals.matplotlib import draw
+    from skfem.visuals.matplotlib import draw
     from matplotlib.tri import Triangulation
 
     print("psi0 = {} (cf. exact = 1/64 = {})".format(psi0, 1 / 64))
 
-    M, Psi = ib.refinterp(psi, 3)
+    if not SKIP_VISUALISATION:
+        M, Psi = ib.refinterp(psi, 3)
 
-    ax = draw(mesh)
-    ax.tricontour(Triangulation(*M.p, M.t.T), Psi)
-    name = splitext(argv[0])[0]
-    ax.get_figure().savefig(f"{name}_stream-lines.png")
+        ax = draw(mesh)
+        ax.tricontour(Triangulation(*M.p, M.t.T), Psi)
+        name = splitext(argv[0])[0]
+        ax.get_figure().savefig(f"{name}_stream-lines.png")
 
-    ax = draw(mesh)
-    ax.quiver(*mesh.p, *velocity.reshape((-1, 2)).T, mesh.p[0])
-    ax.get_figure().savefig(f"{name}_velocity-vectors.png")
+        ax = draw(mesh)
+        ax.quiver(*mesh.p, *velocity.reshape((-1, 2)).T, mesh.p[0])
+        ax.get_figure().savefig(f"{name}_velocity-vectors.png")

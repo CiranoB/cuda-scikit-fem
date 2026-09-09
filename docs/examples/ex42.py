@@ -14,10 +14,15 @@ middle of a unit square.  The mesh is periodic from right-to-left so that the
 resulting solution is also periodic.
 
 """
+import os
+
 import numpy as np
 
-from cudaskfem import *
-from cudaskfem.models import laplace
+from skfem import *
+from skfem.models import laplace
+
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
 
 
 @BilinearForm
@@ -32,8 +37,8 @@ def source(v, w):
 
 
 m = MeshTri1DG.init_tensor(
-    np.linspace(0, 1, 30),
-    np.linspace(0, 1, 30),
+    np.linspace(0, 1, (30 - 1) * INCREASE_REFINE_MESH + 1),
+    np.linspace(0, 1, (30 - 1) * INCREASE_REFINE_MESH + 1),
     periodic=[0],
 )
 
@@ -45,9 +50,9 @@ f = source.assemble(basis)
 
 x = solve(*condense(A, f, D=basis.get_dofs()))
 
-if __name__ == '__main__':
+if __name__ == '__main__' and not SKIP_VISUALISATION:
     from os.path import splitext
     from sys import argv
-    from cudaskfem.visuals.matplotlib import plot, savefig
+    from skfem.visuals.matplotlib import plot, savefig
     plot(basis, x, shading='gouraud', colorbar=True)
     savefig(splitext(argv[0])[0] + '_solution.png')

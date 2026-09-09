@@ -1,12 +1,17 @@
 """Wave equation."""
+import os
+
 import numpy as np
 from scipy.sparse import identity
 from scipy.sparse.linalg import splu
-from cudaskfem import *
-from cudaskfem.models import laplace, mass
+from skfem import *
+from skfem.models import laplace, mass
+
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
 
 
-m = MeshLine().refined(6)
+m = MeshLine().refined(6 + INCREASE_REFINE_MESH)
 basis = Basis(m, ElementLineP1())
 
 N = basis.N
@@ -44,7 +49,7 @@ U0 = basis.project(bump)
 U = np.concatenate((U0, np.zeros(N)))
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not SKIP_VISUALISATION:
     from pathlib import Path
     import matplotlib.pyplot as plt
     import matplotlib.animation as anim

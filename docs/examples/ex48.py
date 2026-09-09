@@ -1,9 +1,14 @@
 """Solve :math:`\Delta^2 u = 1` using HHJ element."""
-from cudaskfem import *
-from cudaskfem.helpers import *
+import os
+
+from skfem import *
+from skfem.helpers import *
 import numpy as np
 
-m = MeshTri.init_sqsymmetric().refined(4)
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
+m = MeshTri.init_sqsymmetric().refined(4 + INCREASE_REFINE_MESH)
 
 e = ElementTriHHJ1() * ElementTriP2G()
 #e = ElementTriHHJ0() * ElementTriP1G()
@@ -41,7 +46,7 @@ x = solve(*condense(K + (B1 - B2 + B3), f, D=D))
 
 (sig, sigbasis), (u, ubasis) = basis.split(x)
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not SKIP_VISUALISATION:
     basis0 = basis.with_element(ElementDG(ElementTriP1()))
 
     for itr in range(2):

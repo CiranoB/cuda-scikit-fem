@@ -1,13 +1,13 @@
 from unittest import TestCase
 import numpy as np
 
-from cudaskfem import BilinearForm, LinearForm, Functional, asm, condense, solve
-from cudaskfem.helpers import dd, ddot
-from cudaskfem.mesh import MeshQuad, MeshTri, MeshLine
-from cudaskfem.element import (ElementQuadBFS, ElementTriArgyris,
+from skfem import BilinearForm, LinearForm, Functional, asm, condense, solve
+from skfem.helpers import dd, ddot
+from skfem.mesh import MeshQuad, MeshTri, MeshLine
+from skfem.element import (ElementQuadBFS, ElementTriArgyris,
                            ElementTriMorley, ElementLineHermite,
                            ElementTri15ParamPlate)
-from cudaskfem.assembly import InteriorBasis
+from skfem.assembly import InteriorBasis
 
 
 class ConvergenceMorley(TestCase):

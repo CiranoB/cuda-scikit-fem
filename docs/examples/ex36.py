@@ -75,10 +75,15 @@ As another check, we can also compute the final volume of the deformed solid whi
 for a nearly incompressible solid, should be close to the initial undeformed volume.
 
 """
+import os
+
 import numpy as np
 from scipy.sparse import bmat
-from cudaskfem.helpers import grad, transpose, det, inv, identity
-from cudaskfem import *
+from skfem.helpers import grad, transpose, det, inv, identity
+from skfem import *
+
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
 
 
 mu, lmbda = 1., 1.e4
@@ -146,7 +151,7 @@ def volume(w):
 
 mesh = (
     MeshTet()
-    .refined(2)
+    .refined(2 + INCREASE_REFINE_MESH)
     .with_boundaries(
         {
             "left": lambda x: x[0] == 0,
@@ -246,7 +251,7 @@ for itr in range(12):
 volume_deformed = vol.assemble(basis["u"], disp=basis["u"].interpolate(du))
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not SKIP_VISUALISATION:
     mesh.save(
         "example36_results.xdmf",
         {"u": du[basis["u"].nodal_dofs].T, "p": dp[basis["p"].nodal_dofs[0]]},

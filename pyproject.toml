@@ -1,3 +1,27 @@
-[build-system]
-requires = ["setuptools>=42", "wheel", "cupy"]
+[project]
+name="cuda-scikit-fem"
+version = "0.1"
+requires-python = "~=3.13.0"
+
 build-backend = "setuptools.build_meta"
+dependencies = [
+    "setuptools>=42",
+    "wheel",
+    "cupy==14.1.1",
+    "numpy",
+    "scipy",
+    "meshio",
+    "matplotlib",
+    "ipython",
+    "pytest",
+    "pyamg",
+    "mypy",
+    "flake8",
+    "sphinx~=6.1",
+    "jax",
+    "jaxlib",
+    "pep517",
+    "shapely",
+    "vedo>=2026.6.1",
+    "snakeviz>=2.2.2",
+]

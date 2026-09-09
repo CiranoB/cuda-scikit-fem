@@ -1,8 +1,15 @@
 """Visualize Argyris basis."""
 
-from cudaskfem import *
+import os
+
+from skfem import *
 import numpy as np
 
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
+# NOTE: this example visualises fixed Argyris basis functions selected via
+# hardcoded DOF indices, so INCREASE_REFINE_MESH is intentionally not applied
+# (refining would invalidate the DOF indices used below).
 m = MeshTri.init_sqsymmetric()
 e = ElementTriArgyris()
 
@@ -10,7 +17,7 @@ ib = Basis(m, e, intorder=5)
 
 def visualize():
     import matplotlib.pyplot as plt
-    from cudaskfem.visuals.matplotlib import plot, draw
+    from skfem.visuals.matplotlib import plot, draw
     f, axes = plt.subplots(3,3)
 
     ixs = [(0,0),(0,1),(0,2),(1,0),(1,2),(2,0)]
@@ -46,5 +53,5 @@ def visualize():
 
     return axi
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not SKIP_VISUALISATION:
     visualize().show()

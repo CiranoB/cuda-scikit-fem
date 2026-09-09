@@ -1,10 +1,15 @@
 """One-dimensional Poisson."""
 
-import numpy as np
-from cudaskfem import *
-from cudaskfem.models.poisson import laplace, unit_load
+import os
 
-m = MeshLine(np.linspace(0, 1, 10))
+import numpy as np
+from skfem import *
+from skfem.models.poisson import laplace, unit_load
+
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
+m = MeshLine(np.linspace(0, 1, (10 - 1) * INCREASE_REFINE_MESH + 1))
 
 e = ElementLineP1()
 basis = Basis(m, e)
@@ -14,7 +19,7 @@ b = asm(unit_load, basis)
 
 x = solve(*condense(A, b, D=basis.get_dofs()))
 
-if __name__ == "__main__":
-    from cudaskfem.visuals.matplotlib import plot, show
+if __name__ == "__main__" and not SKIP_VISUALISATION:
+    from skfem.visuals.matplotlib import plot, show
     plot(m, x)
     show()

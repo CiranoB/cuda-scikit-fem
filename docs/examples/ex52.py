@@ -7,14 +7,18 @@ variety of linear solvers and preconditiors from PETSc.
 This example requires petsc4py.
 
 """
-from cudaskfem import *
-from cudaskfem.helpers import *
+from skfem import *
+from skfem.helpers import *
 import petsc4py.PETSc as petsc
 import time
 
+import os
+
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+
 
 # this mesh has 230 945 vertices
-m = MeshTet().refined(6)
+m = MeshTet().refined(6 + INCREASE_REFINE_MESH)
 basis = Basis(m, ElementTetP1())
 
 

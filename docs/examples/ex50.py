@@ -7,12 +7,17 @@
 # Thermal difusivity to advection ratio is controlled by
 # Peclet number.
 
+import os
+
 import numpy as np
 
 from pathlib import Path
-from cudaskfem import MeshTri, Basis, ElementTriP1, BilinearForm
-from cudaskfem import asm, solve, condense
-from cudaskfem.helpers import grad, dot
+from skfem import MeshTri, Basis, ElementTriP1, BilinearForm
+from skfem import asm, solve, condense
+from skfem.helpers import grad, dot
+
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
 
 # Define the Peclet number
 peclet = 30
@@ -62,6 +67,7 @@ peclet = 30
 # )
 
 mesh = MeshTri.load(Path(__file__).parent / 'meshes' / 'cylinder_stokes.msh')
+mesh = mesh.refined(INCREASE_REFINE_MESH)
 
 # Define the basis for the finite element method
 basis = Basis(mesh, ElementTriP1())
@@ -107,7 +113,7 @@ u[basis.get_dofs("ball")] = 0.0
 
 u = solve(*condense(A, x=u, I=interior))
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not SKIP_VISUALISATION:
 
     mesh.draw(boundaries=True).show()
     basis.plot(u, shading='gouraud', cmap='viridis').show()

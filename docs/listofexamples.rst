@@ -316,6 +316,22 @@ The exact solution at :math:`x=1` is :math:`u(1)=1/8`.
 
 See the source code of :exlink:`34` for more information.
 
+Example 55: Simply supported beam under distributed load
+--------------------------------------------------------
+
+This example solves the Euler-Bernoulli beam equation for a simply supported
+beam subjected to a uniform distributed load.  Cubic Hermite elements are used
+to enforce the :math:`C^1` continuity required by the fourth-order model, and
+the numerical solution is compared against the analytical deflection curve.
+
+.. plot::
+   :caption: The deflection of Example 55 compared against the analytical solution.
+
+   from docs.examples.ex55 import visualize
+   visualize()
+
+See the source code of :exlink:`55` for more information.
+
 Example 36: Nearly incompressible hyperelasticity
 -------------------------------------------------
 

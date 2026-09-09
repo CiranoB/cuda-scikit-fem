@@ -1,0 +1,5 @@
+{
+    "python.analysis.autoImportCompletions": true,
+    "search.useIgnoreFiles": false,
+    "editor.stopRenderingLineAfter" : -1
+}

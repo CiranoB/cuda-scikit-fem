@@ -22,17 +22,20 @@ discretizing time using the generalized ('theta method') trapezoidal
 rule.
 
 """
+import os
 from typing import Iterator, Tuple
 
 import numpy as np
 from scipy.sparse.linalg import splu
 
-from cudaskfem import *
-from cudaskfem.models.poisson import laplace, mass
+from skfem import *
+from skfem.models.poisson import laplace, mass
 
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
 
 halfwidth = 2.0
-ncells = 2 ** 3
+ncells = 2 ** 3 * INCREASE_REFINE_MESH
 diffusivity = 5.0
 
 mesh = MeshLine(np.linspace(-1, 1, 2 * ncells) * halfwidth)
@@ -69,7 +72,7 @@ def evolve(t: float, u: np.ndarray) -> Iterator[Tuple[float, np.ndarray]]:
 probe = basis.probes(np.zeros((mesh.dim(), 1)))
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not SKIP_VISUALISATION:
 
     from argparse import ArgumentParser
     from pathlib import Path

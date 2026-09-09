@@ -60,14 +60,20 @@ for the problem is loaded from an external file *beams.msh*, which is
 included in the source code distribution.
 
 """
-from cudaskfem import *
-from cudaskfem.models.elasticity import linear_elasticity,\
+import os
+
+from skfem import *
+from skfem.models.elasticity import linear_elasticity,\
                                     lame_parameters
 import numpy as np
 
 from pathlib import Path
 
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
 m = MeshTet.load(Path(__file__).parent / 'meshes' / 'beams.msh')
+m = m.refined(INCREASE_REFINE_MESH)
 e1 = ElementTetP2()
 e = ElementVector(e1)
 
@@ -80,7 +86,7 @@ rho = 8050.0
 
 @BilinearForm
 def mass(u, v, w):
-    from cudaskfem.helpers import dot
+    from skfem.helpers import dot
     return dot(rho * u, v)
 
 M = asm(mass, ib)
@@ -89,7 +95,7 @@ L, x = solve(
     *condense(K, M, D=ib.get_dofs("fixed")), solver=solver_eigen_scipy_sym()
 )
 
-if __name__ == "__main__":
-    from cudaskfem.visuals.matplotlib import draw, show
+if __name__ == "__main__" and not SKIP_VISUALISATION:
+    from skfem.visuals.matplotlib import draw, show
     sf = 10.0
     m.translated(sf * x[ib.nodal_dofs, 0]).draw().show()

@@ -52,9 +52,11 @@ segments.
 * Mamou, M. & Khalid, M. (2004). Finite element solution of the Orr–Sommerfeld equation using high precision Hermite elements: plane Poiseuille flow. *International Journal for Numerical Methods in Fluids* 44. pp. 721–735. `doi:10.1002/fld.661 <https://doi.org/10.1002%2ffld.661>`_
 
 """
-from cudaskfem import *
-from cudaskfem.models.general import divergence
-from cudaskfem.models.poisson import laplace, mass
+import os
+
+from skfem import *
+from skfem.models.general import divergence
+from skfem.models.poisson import laplace, mass
 
 from pathlib import Path
 
@@ -62,6 +64,9 @@ import numpy as np
 from numpy.polynomial.polynomial import Polynomial
 from scipy.sparse import block_diag, bmat, csr_matrix
 from scipy.sparse.linalg import eigs
+
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
 
 
 U = Polynomial([1, 0, -1])      # base-flow profile
@@ -77,7 +82,7 @@ def base_shear(u, v, w):
     return v * U.deriv()(w.x[0]) * u
 
 
-mesh = MeshLine(np.linspace(0, 1, 2**6)).with_boundaries(
+mesh = MeshLine(np.linspace(0, 1, (2**6 - 1) * INCREASE_REFINE_MESH + 1)).with_boundaries(
     {
         "centre": lambda x: x[0] == 0,
         "wall": lambda x: x[0] == 1
@@ -120,7 +125,7 @@ c['scikit-fem'] = eigs(pencil[0], M=pencil[1],
                        return_eigenvectors=False) / jare
 
 
-if __name__ == '__main__':
+if __name__ == '__main__' and not SKIP_VISUALISATION:
     from matplotlib.pyplot import subplots
 
     fig, ax = subplots()

@@ -16,14 +16,18 @@ Turmetov, & Torebek 2015).
 
 
 """
+import os
 from functools import partial
 from pathlib import Path
 
-from cudaskfem import *
-from cudaskfem.models.poisson import laplace, mass, unit_load
-from cudaskfem.io.json import from_file
+from skfem import *
+from skfem.models.poisson import laplace, mass, unit_load
+from skfem.io.json import from_file
 
 import numpy as np
+
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
 
 
 def greens(a: float, s: np.ndarray, x: np.ndarray) -> np.ndarray:
@@ -39,7 +43,7 @@ def greens(a: float, s: np.ndarray, x: np.ndarray) -> np.ndarray:
     return np.log(numerator / denominator) / 2 / np.pi
 
 
-basis = Basis(MeshTri.init_circle(5), ElementTriP2())
+basis = Basis(MeshTri.init_circle(5 + INCREASE_REFINE_MESH), ElementTriP2())
 source = np.array([0.3, 0.2])
 
 A = asm(laplace, basis)
@@ -53,7 +57,7 @@ error = x - exact
 l2error = np.sqrt(error @ mass.assemble(basis) @ error)
 
 def visualize():
-    from cudaskfem.visuals.matplotlib import plot
+    from skfem.visuals.matplotlib import plot
     return plot(basis,
                 x,
                 shading='gouraud',
@@ -62,4 +66,5 @@ def visualize():
 
 if __name__ == "__main__":
     print("L2 error:", l2error)
-    visualize().show()
+    if not SKIP_VISUALISATION:
+        visualize().show()

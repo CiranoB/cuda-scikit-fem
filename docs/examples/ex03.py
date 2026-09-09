@@ -1,11 +1,16 @@
 """Linear elastic eigenvalue problem."""
 
-from cudaskfem import *
-from cudaskfem.helpers import dot, ddot, sym_grad, eye, trace
+import os
+
+from skfem import *
+from skfem.helpers import dot, ddot, sym_grad, eye, trace
 import numpy as np
 
-m1 = MeshLine(np.linspace(0, 5, 50))
-m2 = MeshLine(np.linspace(0, 1, 10))
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
+m1 = MeshLine(np.linspace(0, 5, (50 - 1) * INCREASE_REFINE_MESH + 1))
+m2 = MeshLine(np.linspace(0, 1, (10 - 1) * INCREASE_REFINE_MESH + 1))
 m = (m1 * m2).with_defaults()
 
 e1 = ElementQuad1()
@@ -46,7 +51,7 @@ yi = basis.interpolate(y)
 sigma = sbasis.project(C(sym_grad(yi)))
 
 def visualize():
-    from cudaskfem.visuals.matplotlib import plot, draw
+    from skfem.visuals.matplotlib import plot, draw
     M = MeshQuad(np.array(m.p + .5 * y[basis.nodal_dofs]), m.t)
     ax = draw(M)
     return plot(M,
@@ -55,5 +60,5 @@ def visualize():
                 colorbar='$\sigma_{xx}$',
                 shading='gouraud')
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not SKIP_VISUALISATION:
     visualize().show()

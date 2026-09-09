@@ -218,19 +218,24 @@ potential difference across the capacitor. Thus
    C = \\frac{2 E}{V^2}.
 
 """
+import os
 from packaging import version
 from pathlib import Path
 
-from cudaskfem import (MeshTri, Basis, FacetBasis,
+from skfem import (MeshTri, Basis, FacetBasis,
                    solve, asm, condense, projection,
                    ElementTriP1)
-from cudaskfem.models.poisson import laplace, unit_load, mass
-from cudaskfem.io.json import from_file
+from skfem.models.poisson import laplace, unit_load, mass
+from skfem.io.json import from_file
 
 import numpy as np
 
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
 
 mesh = from_file(Path(__file__).parent / 'meshes' / 'ex35.json')
+mesh = mesh.refined(INCREASE_REFINE_MESH)
 
 element = ElementTriP1()
 
@@ -342,10 +347,10 @@ v = (1/np.sqrt(L*C)) / 299792458
 
 print(f'v={v} c')
 
-if __name__ == '__main__':
+if __name__ == '__main__' and not SKIP_VISUALISATION:
     from os.path import splitext
     from sys import argv
-    from cudaskfem.visuals.matplotlib import plot, savefig
+    from skfem.visuals.matplotlib import plot, savefig
     import matplotlib.pyplot as plt
 
     Ai = global_basis.interpolate(A)

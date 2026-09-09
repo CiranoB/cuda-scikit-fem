@@ -13,11 +13,16 @@ finite elements defined on the mesh skeleton.
 
 """
 
-from cudaskfem import *
-from cudaskfem.helpers import grad, dot, jump
+import os
+
+from skfem import *
+from skfem.helpers import grad, dot, jump
 import numpy as np
 
-m = MeshTri().refined(3)
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
+m = MeshTri().refined(3 + INCREASE_REFINE_MESH)
 e = ElementTriP1DG() * ElementTriSkeletonP1()
 ibasis = Basis(m, e)
 tbasis1 = InteriorFacetBasis(m, e, side=0)
@@ -50,12 +55,12 @@ y = solve(*condense(A + B, f, D=ibasis.get_dofs()))
 (u1, _), (ut, skelebasis) = ibasis.split(y)
 
 def visualize():
-    from cudaskfem.visuals.matplotlib import plot
+    from skfem.visuals.matplotlib import plot
     return plot(skelebasis,
                 ut,
                 Nrefs=4,
                 colorbar=True,
                 shading='gouraud')
 
-if __name__ == '__main__':
+if __name__ == '__main__' and not SKIP_VISUALISATION:
     visualize().show()

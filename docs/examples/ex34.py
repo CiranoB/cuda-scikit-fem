@@ -9,15 +9,20 @@ with the boundary conditions
 The analytical solution gives :math:`u(1)=1/8`.
 
 """
-from cudaskfem import *
+import os
 
-m = MeshLine().refined(3).with_boundaries({"left": lambda x: x[0] == 0})
+from skfem import *
+
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
+m = MeshLine().refined(3 + INCREASE_REFINE_MESH).with_boundaries({"left": lambda x: x[0] == 0})
 e = ElementLineHermite()
 basis = Basis(m, e)
 
 @BilinearForm
 def bilinf(u, v, w):
-    from cudaskfem.helpers import dd, ddot
+    from skfem.helpers import dd, ddot
     return ddot(dd(u), dd(v))
 
 @LinearForm
@@ -35,12 +40,12 @@ x = solve(*condense(A, f, D=D))
 err = max(x[basis.nodal_dofs[0]]) - 1. / 8.
 print(err)
 
-if __name__ == '__main__':
+if __name__ == '__main__' and not SKIP_VISUALISATION:
 
     from os.path import splitext
     from sys import argv
     name = splitext(argv[0])[0]
 
-    from cudaskfem.visuals.matplotlib import *
+    from skfem.visuals.matplotlib import *
     plot(basis, x, Nrefs=3)
     savefig(f'{name}_solution.png')

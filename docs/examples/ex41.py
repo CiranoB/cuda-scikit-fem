@@ -13,11 +13,18 @@ meshes work only with finite elements that have nodal
 degrees-of-freedom.
 
 """
+import os
+
 import numpy as np
 from pathlib import Path
-from cudaskfem import *
-from cudaskfem.models import laplace, unit_load
+from skfem import *
+from skfem.models import laplace, unit_load
 
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
+# NOTE: this mixed tri/quad mesh is loaded from Gmsh and the Dirichlet nodes
+# come from meshio node indices, so INCREASE_REFINE_MESH is intentionally not
+# applied (uniform refinement would invalidate those node indices).
 fname = Path(__file__).parent / 'meshes' / 'mixedtriquad.msh'
 out = ['cell_sets_dict']  # read boundary nodes from meshio
 mesh_tri = Mesh.load(fname, force_meshio_type='triangle')
@@ -31,12 +38,12 @@ f = asm(unit_load, [basis_tri, basis_quad])
 y = solve(*condense(A, f, D=out[0]['boundary']['line'].astype(np.int32)))
 
 def visualize():
-    from cudaskfem.visuals.matplotlib import plot, draw
+    from skfem.visuals.matplotlib import plot, draw
     ax = plot(basis_tri, y, Nrefs=4, colorbar=True)
     draw(basis_tri, ax=ax)
     plot(basis_quad, y, ax=ax, Nrefs=4)
     draw(basis_quad, ax=ax)
     return ax
 
-if __name__ == '__main__':
+if __name__ == '__main__' and not SKIP_VISUALISATION:
     visualize().show()

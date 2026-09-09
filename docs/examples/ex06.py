@@ -26,10 +26,14 @@ elements are defined using an isoparametric local-to-global mapping.
 
 """
 
-from cudaskfem import *
-from cudaskfem.models.poisson import laplace, unit_load
+from skfem import *
+from skfem.models.poisson import laplace, unit_load
+import os
 
-m = MeshQuad().refined(2)
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
+m = MeshQuad().refined(2 + INCREASE_REFINE_MESH)
 
 e1 = ElementQuad1()
 e = ElementQuad2()
@@ -43,10 +47,10 @@ x = solve(*condense(K, f, D=basis.get_dofs()))
 
 M, X = basis.refinterp(x, 3)
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not SKIP_VISUALISATION:
     from os.path import splitext
     from sys import argv
-    from cudaskfem.visuals.matplotlib import *
+    from skfem.visuals.matplotlib import *
     ax = draw(m)
     plot(M, X, ax=ax, shading='gouraud')
     savefig(splitext(argv[0])[0] + '_solution.png')

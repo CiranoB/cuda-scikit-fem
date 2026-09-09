@@ -40,17 +40,22 @@ where :math:`\boldsymbol{rot}` is the adjoint of :math:`\mathrm{rot}`:
     \boldsymbol{rot}\,\phi \equiv \frac{\partial\phi}{\partial y}\hat{i} - \frac{\partial\phi}{\partial x}\hat{j}.
 
 """
-from cudaskfem import *
-from cudaskfem.io.json import from_file
-from cudaskfem.models.poisson import vector_laplace, mass, laplace
-from cudaskfem.models.general import divergence, rot
+import os
+
+from skfem import *
+from skfem.io.json import from_file
+from skfem.models.poisson import vector_laplace, mass, laplace
+from skfem.models.general import divergence, rot
 
 from pathlib import Path
 
 import numpy as np
 
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
 
-mesh = MeshTri.init_circle(4)
+
+mesh = MeshTri.init_circle(4 + INCREASE_REFINE_MESH)
 
 element = {'u': ElementVector(ElementTriP2()),
            'p': ElementTriP1()}
@@ -83,14 +88,14 @@ vorticity = asm(rot, basis['psi'], w=basis['u'].interpolate(velocity))
 psi = solve(*condense(A, vorticity, D=basis['psi'].get_dofs()))
 
 
-if __name__ == '__main__':
+if __name__ == '__main__' and not SKIP_VISUALISATION:
 
     from os.path import splitext
     from sys import argv
 
     from matplotlib.tri import Triangulation
 
-    from cudaskfem.visuals.matplotlib import plot, draw, savefig
+    from skfem.visuals.matplotlib import plot, draw, savefig
 
     name = splitext(argv[0])[0]
 

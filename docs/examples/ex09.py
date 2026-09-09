@@ -31,14 +31,19 @@ where :math:`\Omega = (0,1)^3`.
 *  Demidov, D. (2019). AMGCL: an efficient, flexible, and extensible algebraic multigrid implementation. `arXiv:1811.05704 <https://arxiv.org/abs/1811.05704>`_
 
 """
-from cudaskfem import *
-from cudaskfem.helpers import *
+from skfem import *
+from skfem.helpers import *
 import numpy as np
 from scipy.sparse import spmatrix
 from scipy.sparse.linalg import LinearOperator
 
+import os
 
-p = np.linspace(0, 1, 16)
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
+
+p = np.linspace(0, 1, (16 - 1) * INCREASE_REFINE_MESH + 1)
 m = MeshTet.init_tensor(*(p,) * 3)
 basis = Basis(m, ElementTetP1())
 
@@ -85,7 +90,7 @@ for pc in preconditioners:
     x[I] = solve(Aint, bint, solver=solver_iter_pcg(verbose=True, M=pc))
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not SKIP_VISUALISATION:
     from os.path import splitext
     from sys import argv
 

@@ -15,14 +15,19 @@ The equations here have been nondimensionalized by the width of the channel and 
 Because the problem is symmetric about :math:`y = \frac{1}{2}`, only half is solved here, with natural boundary conditions along the centreline.
 
 """
-from cudaskfem import *
-from cudaskfem.models.poisson import laplace, mass
+import os
+
+from skfem import *
+from skfem.models.poisson import laplace, mass
 
 from math import ceil
 
 import numpy as np
 
-mesh_inlet_n = 2**5
+INCREASE_REFINE_MESH = int(os.environ.get("INCREASE_REFINE_MESH", "1"))
+SKIP_VISUALISATION = os.environ.get("SKIP_VISUALISATION", "0") == "1"
+
+mesh_inlet_n = 2**5 * INCREASE_REFINE_MESH
 height = 1.
 length = 10.
 peclet = 1e2
@@ -36,7 +41,7 @@ basis = Basis(mesh, ElementQuad2())
 
 @BilinearForm
 def advection(u, v, w):
-    from cudaskfem.helpers import grad
+    from skfem.helpers import grad
     _, y = w.x
     velocity_0 = 6 * y * (height - y)  # parabolic plane Poiseuille
     return v * velocity_0 * grad(u)[0]
@@ -54,9 +59,9 @@ t0 = solve(asm(mass, basis0),
            asm(mass, basis, basis0) @ t)
 
 
-if __name__ == '__main__':
+if __name__ == '__main__' and not SKIP_VISUALISATION:
     from pathlib import Path
-    from cudaskfem.visuals.matplotlib import plot, savefig
+    from skfem.visuals.matplotlib import plot, savefig
 
     plot(mesh, t0)
     savefig(Path(__file__).with_suffix('.png'),
