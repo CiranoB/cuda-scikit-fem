@@ -91,6 +91,7 @@ EXAMPLES_DIR = REPO_ROOT / "docs" / "examples"
 OUTPUT_DIR = Path(os.getenv("CG_BENCHMARK_OUTPUT_DIR", Path(__file__).resolve().parent))
 RESULTS_CSV = OUTPUT_DIR / "results.csv"
 STATUS_CSV = OUTPUT_DIR / "status.csv"
+RUN_LOGS_DIR = OUTPUT_DIR / "run_logs"
 
 CASES = ("none", "jacobi", "ilu0", "block_jacobi", "polynomial")
 
@@ -279,8 +280,11 @@ def main() -> None:
         reason = f"reached_max_level_{MAX_LEVEL}"
         for level in range(START_LEVEL, MAX_LEVEL + 1):
             t0 = time.perf_counter()
-            row, stop_reason, _ = run_one(example, level)
+            row, stop_reason, output = run_one(example, level)
             dt = time.perf_counter() - t0
+            run_log = RUN_LOGS_DIR / f"ex{example:02d}_L{level}.log"
+            RUN_LOGS_DIR.mkdir(parents=True, exist_ok=True)
+            run_log.write_text(output)
 
             if row is not None:
                 rows.append(row)
@@ -308,7 +312,14 @@ def main() -> None:
                 prev_ndofs = ndofs
             else:
                 print(f"ex{example:02d} L{level}: no result "
-                      f"(reason={stop_reason or 'unknown'}) [{dt:.0f}s]",
+                    f"(reason={stop_reason or 'unknown'}) [{dt:.0f}s] "
+                    f"log={run_log}",
+                      flush=True)
+                if output.strip():
+                  print(f"--- ex{example:02d} L{level} subprocess output ---",
+                      flush=True)
+                  print(output.rstrip(), flush=True)
+                  print(f"--- end ex{example:02d} L{level} subprocess output ---",
                       flush=True)
 
             if stop_reason:
