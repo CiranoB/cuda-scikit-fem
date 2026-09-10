@@ -19,12 +19,13 @@ mkdir -p "${RESULTS_DIR}"
 
 # Each refinement is isolated by benchmark.py and may run for at most 1000 s.
 export PER_RUN_TIMEOUT_S=${PER_RUN_TIMEOUT_S:-1000}
+export HALF_PRECISION=1
 export CG_BENCHMARK_OUTPUT_DIR="${RESULTS_DIR}"
 
 {
     printf 'started_at=%s\n' "$(date --iso-8601=seconds)"
     printf 'per_run_timeout_s=%s\n' "${PER_RUN_TIMEOUT_S}"
-    for variable in START_LEVEL MAX_LEVEL DOF_CAP SPSOLVE_CAP_S EXAMPLES \
+    for variable in HALF_PRECISION START_LEVEL MAX_LEVEL DOF_CAP SPSOLVE_CAP_S EXAMPLES \
         CG_CASE_TIMEOUT_S CG_MAXITER CG_BLOCK_SIZE CG_POLY_DEGREE TOLERANCE; do
         printf '%s=%s\n' "${variable}" "${!variable:-<default>}"
     done
