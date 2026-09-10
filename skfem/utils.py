@@ -294,6 +294,15 @@ def _cg_bench_enabled() -> bool:
     )
 
 
+def _cg_bench_disabled_cases() -> set[str]:
+    """Return benchmark cases disabled for the current exercise sweep."""
+    return {
+        case.strip()
+        for case in os.getenv("CG_BENCHMARK_DISABLED_CASES", "").split(",")
+        if case.strip()
+    }
+
+
 def _make_cg_preconditioner(case: str, A_gpu):
     """Build the GPU preconditioner for a benchmark ``case`` (``None`` if any)."""
     if case == "none":
@@ -352,8 +361,12 @@ def run_cg_preconditioner_benchmark(A, b, x_cpu, spsolve_cpu_s=-1.0):
           f"tol={tol:g} maxiter={maxiter}", flush=True)
 
     budget = float(os.getenv("CG_CASE_TIMEOUT_S", "60"))
+    disabled_cases = _cg_bench_disabled_cases()
     try:
         for case in _CG_BENCH_CASES:
+            if case in disabled_cases:
+                print(f"[cgcase] case={case} status=skipped", flush=True)
+                continue
             try:
                 t0 = time.perf_counter()
                 M = _make_cg_preconditioner(case, A_gpu)

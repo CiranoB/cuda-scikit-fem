@@ -146,7 +146,11 @@ def parse_kv(line: str, tag: str) -> dict | None:
     return fields
 
 
-def run_one(example: int, level: int) -> tuple[dict | None, str, str]:
+def run_one(
+    example: int,
+    level: int,
+    disabled_cases: set[str],
+) -> tuple[dict | None, str, str]:
     """Run one (example, level) subprocess.
 
     Returns ``(parsed_row_or_None, stop_reason, raw_output)`` where
@@ -158,6 +162,7 @@ def run_one(example: int, level: int) -> tuple[dict | None, str, str]:
     env["INCREASE_REFINE_MESH"] = str(level)
     env["SKIP_VISUALISATION"] = "1"
     env["CG_PRECOND_BENCHMARK"] = "1"
+    env["CG_BENCHMARK_DISABLED_CASES"] = ",".join(sorted(disabled_cases))
     env["PYTHONPATH"] = f"{REPO_ROOT}{os.pathsep}{env.get('PYTHONPATH', '')}"
 
     try:
@@ -277,10 +282,11 @@ def main() -> None:
         levels_done = 0
         max_ndofs = 0
         prev_ndofs: int | None = None
+        disabled_cases: set[str] = set()
         reason = f"reached_max_level_{MAX_LEVEL}"
         for level in range(START_LEVEL, MAX_LEVEL + 1):
             t0 = time.perf_counter()
-            row, stop_reason, output = run_one(example, level)
+            row, stop_reason, output = run_one(example, level, disabled_cases)
             dt = time.perf_counter() - t0
             run_log = RUN_LOGS_DIR / f"ex{example:02d}_L{level}.log"
             RUN_LOGS_DIR.mkdir(parents=True, exist_ok=True)
@@ -300,6 +306,11 @@ def main() -> None:
                 print(f"ex{example:02d} L{level} ndofs={row.get('ndofs')} "
                       f"spsolve={row.get('spsolve_cpu_s')}s [{dt:.0f}s] {summary}",
                       flush=True)
+
+                disabled_cases.update(
+                    case for case in CASES
+                    if row.get(f"{case}_status") in {"maxiter", "timeout"}
+                )
 
                 if not stop_reason and ndofs >= DOF_CAP:
                     stop_reason = "reached_dof_cap"
