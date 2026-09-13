@@ -85,6 +85,11 @@ non-zero subprocess exit, the per-run wall-clock cap (typically hit because the
 CPU `spsolve` baseline has become very slow — the regime we want to bound), or
 the global `MAX_LEVEL`. The stop reason is recorded in `status.csv`.
 
+Within an example, a case that reports `maxiter` or `timeout` is disabled for
+all later refinement levels of that example.  The remaining cases continue to
+be measured, and disabled cases are recorded as `status=skipped`.  This state
+does not carry over to another example.
+
 ---
 
 ## `results.csv` columns
