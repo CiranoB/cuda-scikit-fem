@@ -9,4 +9,5 @@ __pycache__/
 *.prof
 _thesis
 docs/examples/cg_all_examples_results/*
+docs/examples/gmres_all_examples_results/*
 

@@ -9,7 +9,7 @@ import time
 from typing import Optional, Union, Tuple, Callable, Dict
 
 import numpy as np
-from skfem.sparse_solvers import load_to_gpu, read_from_gpu, solve_cg_cpu, solve_cg_gpu, solve_gmres_gpu, get_jacobi_preconditioner, get_jacobi_preconditioner_cpu, get_ilu_preconditioner, get_block_jacobi_preconditioner, get_polynomial_preconditioner, solve_spsolve_cpu, solve_spsolve_gpu, solve_superlu_gpu
+from skfem.sparse_solvers import HALF_PRECISION, load_to_gpu, read_from_gpu, solve_cg_cpu, solve_cg_gpu, solve_gmres_gpu, get_jacobi_preconditioner, get_jacobi_preconditioner_cpu, get_ilu_preconditioner, get_block_jacobi_preconditioner, get_block_jacobi_preconditioner_cpu, get_polynomial_preconditioner, get_polynomial_preconditioner_cpu, solve_spsolve_cpu, solve_spsolve_gpu, solve_superlu_gpu
 from skfem.solvers_aplicability import is_cg_compatible as check_cg_applicable, is_gmres_compatible as check_gmres_applicable
 import scipy.sparse as sp
 import scipy.sparse.csgraph as spg
@@ -320,6 +320,94 @@ def _make_cg_preconditioner(case: str, A_gpu):
     raise ValueError(f"unknown CG benchmark case: {case}")
 
 
+# CPU CG cases (reported as ``cpu_<case>``).  ILU(0) has no CPU counterpart:
+# SciPy's ``spilu`` is a different (threshold-based) factorization.
+_CG_CPU_BENCH_CASES = ("none", "jacobi", "block_jacobi", "polynomial")
+
+
+def _cg_cpu_bench_enabled() -> bool:
+    """Whether the CPU CG cases are opted in via ``CG_BENCH_CPU``."""
+    return os.getenv("CG_BENCH_CPU", "0").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
+
+
+def _make_cg_preconditioner_cpu(case: str, A_cpu):
+    """Build the CPU preconditioner for a benchmark ``case`` (``None`` if any)."""
+    if case == "none":
+        return None
+    if case == "jacobi":
+        return get_jacobi_preconditioner_cpu(A_cpu)
+    if case == "block_jacobi":
+        return get_block_jacobi_preconditioner_cpu(
+            A_cpu, block_size=int(os.getenv("CG_BLOCK_SIZE", "8")))
+    if case == "polynomial":
+        return get_polynomial_preconditioner_cpu(
+            A_cpu, degree=int(os.getenv("CG_POLY_DEGREE", "3")))
+    raise ValueError(f"unknown CG CPU benchmark case: {case}")
+
+
+def _run_cg_cpu_cases(A, b, x_cpu, tol, maxiter, budget, disabled_cases):
+    """Time SciPy CG on the host for each case in :data:`_CG_CPU_BENCH_CASES`.
+
+    Uses the same dtype as the GPU path (``HALF_PRECISION``) so both devices
+    solve the same problem.  Printed on ``[cgcase]`` lines as ``cpu_<case>``;
+    ``readback_s`` is always 0.
+    """
+    dtype = np.float32 if HALF_PRECISION else np.float64
+    A_c = sp.csr_matrix(A, dtype=dtype)
+    b_c = np.asarray(b, dtype=dtype)
+    bnorm = float(np.linalg.norm(b)) or 1.0
+
+    for case in _CG_CPU_BENCH_CASES:
+        name = f"cpu_{case}"
+        if name in disabled_cases:
+            print(f"[cgcase] case={name} status=skipped", flush=True)
+            continue
+        try:
+            t0 = time.perf_counter()
+            M = _make_cg_preconditioner_cpu(case, A_c)
+            precond_s = time.perf_counter() - t0
+
+            state = {"iters": 0, "last_x": None, "start": 0.0}
+
+            def _cb(xk, _s=state):
+                _s["iters"] += 1
+                _s["last_x"] = xk.copy()
+                if time.perf_counter() - _s["start"] > budget:
+                    raise _CGBudgetExceeded()
+
+            status = "converged"
+            state["start"] = time.perf_counter()
+            t0 = state["start"]
+            try:
+                x_np, info = spl.cg(A_c, b_c, rtol=tol, maxiter=maxiter,
+                                    M=M, callback=_cb)
+                if info != 0:
+                    status = "maxiter"
+            except _CGBudgetExceeded:
+                x_np = state["last_x"]
+                status = "timeout"
+            solve_s = time.perf_counter() - t0
+
+            if x_np is None:
+                x_np = np.zeros_like(b_c)
+            x_np = np.asarray(x_np, dtype=np.float64)
+            diff = np.abs(x_np - x_cpu)
+            relres = float(np.linalg.norm(A @ x_np - b) / bnorm)
+            print(f"[cgcase] case={name} status={status} "
+                  f"precond_s={precond_s:.6f} solve_s={solve_s:.6f} "
+                  f"readback_s=0.000000 total_s={precond_s + solve_s:.6f} "
+                  f"converged={int(status == 'converged')} "
+                  f"iters={state['iters']} "
+                  f"relres={relres:.3e} max_abs_diff={diff.max():.3e} "
+                  f"mean_abs_diff={diff.mean():.3e}", flush=True)
+            del M
+        except Exception as exc:
+            print(f"[cgcase] case={name} status=error "
+                  f"error={type(exc).__name__}", flush=True)
+
+
 def run_cg_preconditioner_benchmark(A, b, x_cpu, spsolve_cpu_s=-1.0):
     """Benchmark GPU CG with several preconditioners against CPU spsolve.
 
@@ -423,6 +511,180 @@ def run_cg_preconditioner_benchmark(A, b, x_cpu, spsolve_cpu_s=-1.0):
         del A_gpu, b_gpu
         cp.get_default_memory_pool().free_all_blocks()
 
+    if _cg_cpu_bench_enabled():
+        cpu_budget = float(os.getenv("CG_CPU_CASE_TIMEOUT_S", str(budget)))
+        _run_cg_cpu_cases(A, b, x_cpu, tol, maxiter, cpu_budget,
+                          disabled_cases)
+
+
+# ---------------------------------------------------------------------------
+# GMRES preconditioner benchmark (opt-in via GMRES_PRECOND_BENCHMARK)
+# ---------------------------------------------------------------------------
+
+# GPU GMRES cases compared against the CPU spsolve reference, in report order.
+# Same preconditioners as the CG benchmark: GMRES does not require them to be
+# symmetric, so this also tells us how well each behaves on non-SPD systems.
+_GMRES_BENCH_CASES = ("none", "jacobi", "ilu0", "block_jacobi", "polynomial")
+
+
+class _GMRESBudgetExceeded(Exception):
+    """Internal signal that a GMRES case exceeded its per-case time budget."""
+
+# Only the first eligible linear solve per process is benchmarked so that
+# time-stepping / nonlinear examples are not measured on every internal solve.
+# The subprocess-per-run harness resets this flag naturally.
+_gmres_bench_done = False
+
+
+def _gmres_bench_enabled() -> bool:
+    """Whether the 5-case GMRES preconditioner benchmark is opted in."""
+    return os.getenv("GMRES_PRECOND_BENCHMARK", "0").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
+
+
+def _gmres_bench_disabled_cases() -> set[str]:
+    """Return benchmark cases disabled for the current exercise sweep."""
+    return {
+        case.strip()
+        for case in os.getenv("GMRES_BENCHMARK_DISABLED_CASES", "").split(",")
+        if case.strip()
+    }
+
+
+def _make_gmres_preconditioner(case: str, A_gpu):
+    """Build the GPU preconditioner for a benchmark ``case`` (``None`` if any)."""
+    if case == "none":
+        return None
+    if case == "jacobi":
+        return get_jacobi_preconditioner(A_gpu)
+    if case == "ilu0":
+        return get_ilu_preconditioner(A_gpu)
+    if case == "block_jacobi":
+        return get_block_jacobi_preconditioner(
+            A_gpu, block_size=int(os.getenv("GMRES_BLOCK_SIZE", "8")))
+    if case == "polynomial":
+        return get_polynomial_preconditioner(
+            A_gpu, degree=int(os.getenv("GMRES_POLY_DEGREE", "3")))
+    raise ValueError(f"unknown GMRES benchmark case: {case}")
+
+
+def run_gmres_preconditioner_benchmark(A, b, x_cpu, spsolve_cpu_s=-1.0):
+    """Benchmark GPU GMRES with several preconditioners against CPU spsolve.
+
+    Opt-in via ``GMRES_PRECOND_BENCHMARK``.  Mirrors
+    :func:`run_cg_preconditioner_benchmark` but drives ``cupyx``'s GMRES,
+    which is applicable to general (non-symmetric) systems.  Uploads the
+    condensed system once and, for each preconditioner in
+    :data:`_GMRES_BENCH_CASES`, times the end-to-end GPU GMRES path
+    (host->device transfer, preconditioner build, solve, device->host
+    readback) and reports convergence, the 2-norm relative residual, and the
+    difference from the CPU reference on machine-parseable ``[gmrescase]``
+    lines.  Only the first eligible solve per process is measured.
+
+    GMRES only invokes ``callback`` on every restart cycle (not every inner
+    iteration), so the reported ``iters`` counts restarts, not the total
+    number of matrix-vector products.
+    """
+    global _gmres_bench_done
+    if _gmres_bench_done or not _gmres_bench_enabled():
+        return
+
+    ndofs = A.shape[0]
+    if ndofs < int(os.getenv("GMRES_BENCH_MIN_DOFS", "1")):
+        return
+    _gmres_bench_done = True
+
+    tol = TOLERANCE
+    maxiter = int(os.getenv("GMRES_MAXITER", "5000"))
+    restart_env = os.getenv("GMRES_RESTART", "")
+    restart = int(restart_env) if restart_env else None
+    bnorm = float(np.linalg.norm(b)) or 1.0
+    supports_cb = "callback" in inspect.signature(gmres).parameters
+
+    # Warm up the CUDA context so ``transfer_s`` measures the host->device copy
+    # rather than one-time context initialization, which a real application
+    # pays once at start-up instead of on every solve.
+    _warm = cp.zeros(1) + 1
+    cp.cuda.Stream.null.synchronize()
+    del _warm
+
+    t0 = time.perf_counter()
+    A_gpu, b_gpu = load_to_gpu(A, b)
+    cp.cuda.Stream.null.synchronize()
+    transfer_s = time.perf_counter() - t0
+
+    print(f"[gmresbench] ndofs={ndofs} nnz={int(A.nnz)} "
+          f"spsolve_cpu_s={spsolve_cpu_s:.6f} transfer_s={transfer_s:.6f} "
+          f"tol={tol:g} maxiter={maxiter} restart={restart}", flush=True)
+
+    budget = float(os.getenv("GMRES_CASE_TIMEOUT_S", "60"))
+    disabled_cases = _gmres_bench_disabled_cases()
+    try:
+        for case in _GMRES_BENCH_CASES:
+            if case in disabled_cases:
+                print(f"[gmrescase] case={case} status=skipped", flush=True)
+                continue
+            try:
+                t0 = time.perf_counter()
+                M = _make_gmres_preconditioner(case, A_gpu)
+                cp.cuda.Stream.null.synchronize()
+                precond_s = time.perf_counter() - t0
+
+                state = {"iters": 0, "last_x": None, "start": 0.0}
+
+                def _cb(arg, _s=state):
+                    _s["iters"] += 1
+                    _s["last_x"] = arg
+                    if time.perf_counter() - _s["start"] > budget:
+                        raise _GMRESBudgetExceeded()
+
+                gmres_kwargs = {
+                    "rtol": tol, "maxiter": maxiter, "restart": restart, "M": M,
+                }
+                if supports_cb:
+                    gmres_kwargs["callback"] = _cb
+                    gmres_kwargs["callback_type"] = "x"
+
+                status = "converged"
+                state["start"] = time.perf_counter()
+                t0 = state["start"]
+                try:
+                    x_gpu, info = gmres(A_gpu, b_gpu, **gmres_kwargs)
+                    if info != 0:
+                        status = "maxiter"
+                except _GMRESBudgetExceeded:
+                    x_gpu = (state["last_x"] if state["last_x"] is not None
+                             else cp.zeros_like(b_gpu))
+                    status = "timeout"
+                cp.cuda.Stream.null.synchronize()
+                solve_s = time.perf_counter() - t0
+
+                t0 = time.perf_counter()
+                x_np = cp.asnumpy(x_gpu)
+                readback_s = time.perf_counter() - t0
+
+                total_s = transfer_s + precond_s + solve_s + readback_s
+                diff = np.abs(x_np - x_cpu)
+                relres = float(np.linalg.norm(A @ x_np - b) / bnorm)
+                print(f"[gmrescase] case={case} status={status} "
+                      f"precond_s={precond_s:.6f} solve_s={solve_s:.6f} "
+                      f"readback_s={readback_s:.6f} total_s={total_s:.6f} "
+                      f"converged={int(status == 'converged')} "
+                      f"iters={state['iters'] if supports_cb else -1} "
+                      f"relres={relres:.3e} max_abs_diff={diff.max():.3e} "
+                      f"mean_abs_diff={diff.mean():.3e}", flush=True)
+
+                del M, x_gpu
+                cp.get_default_memory_pool().free_all_blocks()
+            except Exception as exc:
+                print(f"[gmrescase] case={case} status=error "
+                      f"error={type(exc).__name__}", flush=True)
+                cp.get_default_memory_pool().free_all_blocks()
+    finally:
+        del A_gpu, b_gpu
+        cp.get_default_memory_pool().free_all_blocks()
+
 
 def solver_direct_scipy(**kwargs):
     def solver(A: sp.spmatrix, b: np.ndarray, **solve_time_kwargs):
@@ -435,6 +697,7 @@ def solver_direct_scipy(**kwargs):
 
         run_enabled_gpu_solvers(A, b, x)
         run_cg_preconditioner_benchmark(A, b, x, spsolve_cpu_s=spsolve_cpu_s)
+        run_gmres_preconditioner_benchmark(A, b, x, spsolve_cpu_s=spsolve_cpu_s)
 
         return x
 

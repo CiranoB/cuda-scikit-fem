@@ -55,6 +55,9 @@ PER_RUN_TIMEOUT_S    wall-clock cap per subprocess    (default 1800)
 DOF_CAP              stop climbing once ndofs reaches this ceiling (default 5,000,000)
 SPSOLVE_CAP_S        stop climbing once CPU spsolve alone exceeds this (default 300)
 CG_CASE_TIMEOUT_S    per-preconditioner solve budget  (default 30, passed on)
+CG_BENCH_CPU         also time SciPy CG on the host (none/jacobi/block_jacobi/
+                     polynomial, columns ``cpu_<case>_*``)  (default 1)
+CG_CPU_CASE_TIMEOUT_S per-case budget for the CPU CG cases (default 100)
 CG_MAXITER            CG iteration cap                 (default 5000, passed on)
 CG_BLOCK_SIZE        block size for block-Jacobi      (default 8, passed on)
 CG_POLY_DEGREE        Neumann polynomial degree        (default 3, passed on)
@@ -93,7 +96,10 @@ RESULTS_CSV = OUTPUT_DIR / "results.csv"
 STATUS_CSV = OUTPUT_DIR / "status.csv"
 RUN_LOGS_DIR = OUTPUT_DIR / "run_logs"
 
-CASES = ("none", "jacobi", "ilu0", "block_jacobi", "polynomial")
+GPU_CASES = ("none", "jacobi", "ilu0", "block_jacobi", "polynomial")
+# Host (SciPy) CG cases, enabled by CG_BENCH_CPU; reported as ``cpu_<case>``.
+CPU_CASES = ("cpu_none", "cpu_jacobi", "cpu_block_jacobi", "cpu_polynomial")
+CASES = GPU_CASES + CPU_CASES if os.getenv("CG_BENCH_CPU", "1") == "1" else GPU_CASES
 
 START_LEVEL = int(os.getenv("START_LEVEL", "1"))
 MAX_LEVEL = int(os.getenv("MAX_LEVEL", "100"))
@@ -105,6 +111,8 @@ SPSOLVE_CAP_S = float(os.getenv("SPSOLVE_CAP_S", "300"))
 # read by skfem.utils at solve time; SKIP_VISUALISATION avoids GUI/file output.
 FORWARDED_DEFAULTS = {
     "CG_CASE_TIMEOUT_S": os.getenv("CG_CASE_TIMEOUT_S", "30"),
+    "CG_CPU_CASE_TIMEOUT_S": os.getenv("CG_CPU_CASE_TIMEOUT_S", "100"),
+    "CG_BENCH_CPU": os.getenv("CG_BENCH_CPU", "1"),
     "CG_MAXITER": os.getenv("CG_MAXITER", "5000"),
     "CG_BLOCK_SIZE": os.getenv("CG_BLOCK_SIZE", "8"),
     "CG_POLY_DEGREE": os.getenv("CG_POLY_DEGREE", "3"),

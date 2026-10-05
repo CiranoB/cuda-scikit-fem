@@ -26,7 +26,7 @@ export CG_BENCHMARK_OUTPUT_DIR="${RESULTS_DIR}"
     printf 'started_at=%s\n' "$(date --iso-8601=seconds)"
     printf 'per_run_timeout_s=%s\n' "${PER_RUN_TIMEOUT_S}"
     for variable in HALF_PRECISION START_LEVEL MAX_LEVEL DOF_CAP SPSOLVE_CAP_S EXAMPLES \
-        CG_CASE_TIMEOUT_S CG_MAXITER CG_BLOCK_SIZE CG_POLY_DEGREE TOLERANCE; do
+        CG_CASE_TIMEOUT_S CG_CPU_CASE_TIMEOUT_S CG_BENCH_CPU CG_MAXITER CG_BLOCK_SIZE CG_POLY_DEGREE TOLERANCE; do
         printf '%s=%s\n' "${variable}" "${!variable:-<default>}"
     done
 } > "${RESULTS_DIR}/run.env"
