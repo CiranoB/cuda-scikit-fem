@@ -23,7 +23,7 @@ import os
 import cupy as cp
 from cupyx.scipy.sparse.linalg import LinearOperator
 from cupyx.scipy.sparse import csr_matrix as cpx_csr
-from cupyx.scipy.sparse.linalg import cg, gmres, cgs, minres
+from cupyx.scipy.sparse.linalg import cg, gmres, cgs, minres, spilu as gpu_spilu
 ### CUDA ###
 
 if "pyodide" in sys.modules:
@@ -559,7 +559,8 @@ def _make_gmres_preconditioner(case: str, A_gpu):
     if case == "jacobi":
         return get_jacobi_preconditioner(A_gpu)
     if case == "ilu0":
-        return get_ilu_preconditioner(A_gpu)
+        factor = gpu_spilu(A_gpu, fill_factor=1)
+        return LinearOperator(A_gpu.shape, matvec=factor.solve)
     if case == "block_jacobi":
         return get_block_jacobi_preconditioner(
             A_gpu, block_size=int(os.getenv("GMRES_BLOCK_SIZE", "8")))
@@ -643,6 +644,9 @@ def _run_gmres_cpu_cases(matrix, rhs, x_cpu, tol, maxiter, restart, budget,
             x_np = np.asarray(x_np, dtype=np.float64)
             diff = np.abs(x_np - x_cpu)
             relres = float(np.linalg.norm(matrix @ x_np - rhs) / bnorm)
+            if status == "converged" and (
+                    not np.isfinite(relres) or relres > tol):
+                status = "residual_mismatch"
             print(f"[gmrescase] case={name} status={status} "
                   f"precond_s={precond_s:.6f} solve_s={solve_s:.6f} "
                   f"readback_s=0.000000 total_s={precond_s + solve_s:.6f} "
@@ -654,6 +658,24 @@ def _run_gmres_cpu_cases(matrix, rhs, x_cpu, tol, maxiter, restart, budget,
         except Exception as exc:
             print(f"[gmrescase] case={name} status=error "
                   f"error={type(exc).__name__}", flush=True)
+
+
+def _gmres_bench_matches_target() -> bool:
+    """Exclude library projections and solves made by imported examples."""
+    target = os.getenv("GMRES_BENCHMARK_TARGET_FILE")
+    if not target:
+        return True
+    frame = inspect.currentframe()
+    try:
+        while frame is not None:
+            if frame.f_code is solve.__code__:
+                caller = frame.f_back
+                return caller is not None and os.path.realpath(
+                    caller.f_code.co_filename) == os.path.realpath(target)
+            frame = frame.f_back
+        return False
+    finally:
+        del frame
 
 
 def run_gmres_preconditioner_benchmark(A, b, x_cpu, spsolve_cpu_s=-1.0):
@@ -675,6 +697,8 @@ def run_gmres_preconditioner_benchmark(A, b, x_cpu, spsolve_cpu_s=-1.0):
     """
     global _gmres_bench_done
     if _gmres_bench_done or not _gmres_bench_enabled():
+        return
+    if not _gmres_bench_matches_target():
         return
 
     ndofs = A.shape[0]
@@ -754,6 +778,9 @@ def run_gmres_preconditioner_benchmark(A, b, x_cpu, spsolve_cpu_s=-1.0):
                 total_s = transfer_s + precond_s + solve_s + readback_s
                 diff = np.abs(x_np - x_cpu)
                 relres = float(np.linalg.norm(A @ x_np - b) / bnorm)
+                if status == "converged" and (
+                        not np.isfinite(relres) or relres > tol):
+                    status = "residual_mismatch"
                 print(f"[gmrescase] case={case} status={status} "
                       f"precond_s={precond_s:.6f} solve_s={solve_s:.6f} "
                       f"readback_s={readback_s:.6f} total_s={total_s:.6f} "
@@ -776,6 +803,8 @@ def run_gmres_preconditioner_benchmark(A, b, x_cpu, spsolve_cpu_s=-1.0):
         cpu_budget = float(os.getenv("GMRES_CPU_CASE_TIMEOUT_S", str(budget)))
         _run_gmres_cpu_cases(A, b, x_cpu, tol, maxiter, restart, cpu_budget,
                              disabled_cases)
+    if os.getenv("GMRES_BENCHMARK_EXIT_AFTER_SOLVE", "0") == "1":
+        raise SystemExit(0)
 
 
 def solver_direct_scipy(**kwargs):

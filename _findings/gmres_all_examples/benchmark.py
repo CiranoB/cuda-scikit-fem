@@ -12,7 +12,9 @@ What it does
    in its own subprocess for isolation, so a crash or GPU out-of-memory in one
    configuration never aborts the whole campaign.
 3. Every run is launched with ``GMRES_PRECOND_BENCHMARK=1`` which makes
-   ``skfem.utils.solver_direct_scipy`` measure the *first* linear solve with
+    ``skfem.utils.solver_direct_scipy`` measure the *first explicit* linear solve
+    called by the target example, excluding library projections and imported
+    examples' solves, with
    the CPU ``spsolve`` reference and then time the end-to-end GPU GMRES path
    (host->device transfer, preconditioner build, solve, device->host readback)
    for the five preconditioner cases:
@@ -42,7 +44,7 @@ any of the following happens:
 * ``ndofs`` is identical to the previous level's (``no_mesh_growth``), which
   happens for examples whose mesh is not parameterized by
   ``INCREASE_REFINE_MESH`` (e.g. ex26, which inherits ex17's fixed mesh);
-* every preconditioner case has already failed (``maxiter``/``timeout``) at a
+* every preconditioner case has already failed (``maxiter``/``timeout``/``error``) at a
   smaller mesh (``all_cases_disabled``) -- climbing further would only widen
   the CPU/GPU gap without producing any new convergence signal;
 * the global ceiling ``MAX_LEVEL`` is reached.
@@ -165,7 +167,10 @@ def run_one(
     env["INCREASE_REFINE_MESH"] = str(level)
     env["SKIP_VISUALISATION"] = "1"
     env["GMRES_PRECOND_BENCHMARK"] = "1"
+    env["GMRES_BENCHMARK_TARGET_FILE"] = str(example_file)
+    env["GMRES_BENCHMARK_EXIT_AFTER_SOLVE"] = "1"
     env["GMRES_BENCHMARK_DISABLED_CASES"] = ",".join(sorted(disabled_cases))
+    env["PYTHONUNBUFFERED"] = "1"
     env["PYTHONPATH"] = f"{REPO_ROOT}{os.pathsep}{env.get('PYTHONPATH', '')}"
 
     try:
@@ -181,8 +186,13 @@ def run_one(
         returncode = proc.returncode
         timed_out = False
     except subprocess.TimeoutExpired as exc:
-        output = (exc.stdout or "") + "\n" + (exc.stderr or "") \
-            if isinstance(exc.stdout, str) else ""
+        stdout = exc.stdout or ""
+        stderr = exc.stderr or ""
+        if isinstance(stdout, bytes):
+            stdout = stdout.decode(errors="replace")
+        if isinstance(stderr, bytes):
+            stderr = stderr.decode(errors="replace")
+        output = stdout + "\n" + stderr
         returncode = None
         timed_out = True
 
@@ -313,7 +323,9 @@ def main() -> None:
 
                 disabled_cases.update(
                     case for case in CASES
-                    if row.get(f"{case}_status") in {"maxiter", "timeout"}
+                    if row.get(f"{case}_status") in {
+                        "maxiter", "timeout", "error", "residual_mismatch",
+                    }
                 )
 
                 if not stop_reason and ndofs >= DOF_CAP:

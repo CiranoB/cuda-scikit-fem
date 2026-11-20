@@ -27,7 +27,7 @@ mkdir -p "${RESULTS_DIR}"
 
 # Each refinement is isolated by benchmark.py and may run for at most 1000 s.
 export PER_RUN_TIMEOUT_S=${PER_RUN_TIMEOUT_S:-1000}
-export HALF_PRECISION=1
+export HALF_PRECISION=${HALF_PRECISION:-1}
 export START_LEVEL=${START_LEVEL:-1}
 export MAX_LEVEL=${MAX_LEVEL:-100}
 export DOF_CAP=${DOF_CAP:-5000000}

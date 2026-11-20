@@ -1,4 +1,8 @@
 from unittest import TestCase
+import importlib.util
+from pathlib import Path
+import subprocess
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -137,6 +141,141 @@ def test_gmres_cpu_benchmark_disabled_and_error(monkeypatch, capsys):
     assert "case=cpu_jacobi status=error error=RuntimeError" in output
     assert "case=cpu_block_jacobi status=converged" in output
     assert "case=cpu_polynomial status=converged" in output
+
+
+def test_gmres_ilu0_zero_fill(monkeypatch):
+    matrix = SimpleNamespace(shape=(3, 3))
+    calls = []
+    factor = SimpleNamespace(solve=lambda rhs: rhs)
+
+    def factorize(matrix_arg, **kwargs):
+        calls.append((matrix_arg, kwargs))
+        return factor
+
+    monkeypatch.setattr(utils, "gpu_spilu", factorize)
+    monkeypatch.setattr(utils, "LinearOperator", lambda shape, matvec: (shape, matvec))
+    preconditioner = utils._make_gmres_preconditioner("ilu0", matrix)
+    assert calls == [(matrix, {"fill_factor": 1})]
+    assert preconditioner == (matrix.shape, factor.solve)
+
+    def fail_factorization(*args, **kwargs):
+        raise RuntimeError("zero pivot")
+
+    monkeypatch.setattr(utils, "gpu_spilu", fail_factorization)
+    with pytest.raises(RuntimeError, match="zero pivot"):
+        utils._make_gmres_preconditioner("ilu0", matrix)
+
+
+@pytest.mark.parametrize("device", ["cpu", "gpu"])
+@pytest.mark.parametrize("candidate", [0., np.nan])
+def test_gmres_benchmark_checks_true_residual(monkeypatch, capsys, device,
+                                             candidate):
+    matrix = scipy.sparse.eye(3, format="csr")
+    rhs = np.ones(3)
+
+    def false_success(matrix_arg, rhs_arg, **kwargs):
+        return np.full_like(rhs_arg, candidate), 0
+
+    if device == "cpu":
+        monkeypatch.setattr(utils, "_GMRES_CPU_BENCH_CASES", ("none",))
+        monkeypatch.setattr(utils.spl, "gmres", false_success)
+        utils._run_gmres_cpu_cases(matrix, rhs, rhs, 1e-5, 100, 3, 5., set())
+    else:
+        stream = SimpleNamespace(synchronize=lambda: None)
+        pool = SimpleNamespace(free_all_blocks=lambda: None)
+        gpu = SimpleNamespace(
+            zeros=np.zeros, asnumpy=np.asarray,
+            cuda=SimpleNamespace(Stream=SimpleNamespace(null=stream)),
+            get_default_memory_pool=lambda: pool)
+        monkeypatch.setattr(utils, "cp", gpu)
+        monkeypatch.setattr(utils, "load_to_gpu", lambda matrix_arg, rhs_arg: (matrix_arg, rhs_arg))
+        monkeypatch.setattr(utils, "gmres", false_success)
+        monkeypatch.setattr(utils, "_GMRES_BENCH_CASES", ("none",))
+        monkeypatch.setattr(utils, "_gmres_bench_done", False)
+        monkeypatch.setattr(utils, "_gmres_bench_matches_target", lambda: True)
+        monkeypatch.setattr(utils, "_gmres_cpu_bench_enabled", lambda: False)
+        monkeypatch.setenv("GMRES_PRECOND_BENCHMARK", "1")
+        monkeypatch.setenv("GMRES_BENCHMARK_EXIT_AFTER_SOLVE", "1")
+        with pytest.raises(SystemExit) as exited:
+            utils.run_gmres_preconditioner_benchmark(matrix, rhs, rhs)
+        assert exited.value.code == 0
+    output = capsys.readouterr().out
+    assert "status=residual_mismatch" in output
+    assert "converged=0" in output
+
+
+def test_gmres_target_excludes_auxiliary_solves(monkeypatch, tmp_path):
+    monkeypatch.setenv("GMRES_BENCHMARK_TARGET_FILE", __file__)
+    observations = []
+
+    def benchmark(*args, **kwargs):
+        observations.append(utils._gmres_bench_matches_target())
+
+    monkeypatch.setattr(utils, "run_gmres_preconditioner_benchmark", benchmark)
+    matrix = scipy.sparse.eye(3, format="csr")
+    rhs = np.ones(3)
+    utils.solve(matrix, rhs)
+    exec(compile("utils.solve(matrix, rhs)", str(tmp_path / "imported.py"), "exec"),
+         {"utils": utils, "matrix": matrix, "rhs": rhs})
+    Basis(MeshTri(), ElementTriP1()).project(lambda coordinates: coordinates[0])
+    assert observations == [True, False, False]
+    monkeypatch.delenv("GMRES_BENCHMARK_TARGET_FILE")
+    assert utils._gmres_bench_matches_target()
+
+
+@pytest.fixture
+def gmres_harness():
+    path = Path(__file__).resolve().parents[1] / "_findings/gmres_all_examples/benchmark.py"
+    spec = importlib.util.spec_from_file_location("gmres_harness_test", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.mark.parametrize("as_bytes", [False, True])
+def test_gmres_timeout_preserves_partial_output(monkeypatch, gmres_harness,
+                                               as_bytes):
+    output = ("[gmresbench] ndofs=4 nnz=4 spsolve_cpu_s=0.1 transfer_s=0.01 "
+              "tol=1e-5 maxiter=5000 restart=20\n"
+              "[gmrescase] case=none status=converged total_s=0.02 converged=1\n")
+    error = "partial diagnostic\n"
+    if as_bytes:
+        output, error = output.encode(), error.encode()
+
+    def timeout(*args, **kwargs):
+        assert kwargs["env"]["GMRES_BENCHMARK_TARGET_FILE"].endswith("ex01.py")
+        assert kwargs["env"]["GMRES_BENCHMARK_EXIT_AFTER_SOLVE"] == "1"
+        raise subprocess.TimeoutExpired("example", 1, output=output, stderr=error)
+
+    monkeypatch.setattr(gmres_harness.subprocess, "run", timeout)
+    row, reason, raw = gmres_harness.run_one(1, 1, set())
+    assert reason == "timeout"
+    assert row["ndofs"] == 4
+    assert row["none_status"] == "converged"
+    assert "partial diagnostic" in raw
+
+
+def test_gmres_stops_after_all_cases_fail(monkeypatch, tmp_path, gmres_harness):
+    monkeypatch.delenv("EXAMPLES", raising=False)
+    monkeypatch.setattr(gmres_harness, "gmres_compatible_examples", lambda: [1])
+    monkeypatch.setattr(gmres_harness, "MAX_LEVEL", 10)
+    monkeypatch.setattr(gmres_harness, "RESULTS_CSV", tmp_path / "results.csv")
+    monkeypatch.setattr(gmres_harness, "STATUS_CSV", tmp_path / "status.csv")
+    monkeypatch.setattr(gmres_harness, "RUN_LOGS_DIR", tmp_path / "logs")
+    calls = []
+
+    def fail_cases(example, level, disabled):
+        calls.append(level)
+        row = {"example": example, "refined": level, "ndofs": 4}
+        row.update({f"{case}_status": "error" if case == "ilu0" else "maxiter"
+                    for case in gmres_harness.CASES})
+        row["none_status"] = "residual_mismatch"
+        return row, "", ""
+
+    monkeypatch.setattr(gmres_harness, "run_one", fail_cases)
+    gmres_harness.main()
+    assert calls == [1]
+    assert "all_cases_disabled" in (tmp_path / "status.csv").read_text()
 
 
 def test_mpc_periodic():
