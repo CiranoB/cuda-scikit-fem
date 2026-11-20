@@ -1,14 +1,11 @@
-"""Sweep every GMRES-compatible (and NOT CG-compatible) documentation example
-and compare, at growing mesh sizes, five GPU GMRES variants against the CPU
-direct solver ``spsolve``.
+"""Sweep every GMRES-compatible documentation example and compare, at growing
+mesh sizes, five GPU and four CPU GMRES variants against CPU ``spsolve``.
 
 What it does
 ------------
 1. Reads ``_findings/solver_suitability.csv`` and selects the examples marked
-   ``X`` in the GMRES column and *not* marked in the CG column, i.e. systems
-   that are square/non-singular but not (verified) symmetric positive
-   definite -- the structural reason CG is unsuitable and GMRES is used
-   instead.
+    ``X`` in the GMRES column.  The survey currently assigns mutually exclusive
+    solver categories; these marks are not a guarantee of convergence.
 2. For each example ``docs/examples/exNN.py`` it runs a mesh-refinement sweep
    by increasing the ``INCREASE_REFINE_MESH`` environment variable (1 = the
    original mesh of the example).  Each ``(example, level)`` pair is executed
@@ -22,7 +19,9 @@ What it does
 
        none, jacobi, ilu0, block_jacobi, polynomial
 
-   and print machine-parseable ``[gmresbench]`` / ``[gmrescase]`` lines.
+   CPU GMRES uses none, jacobi, block_jacobi, and polynomial, reported with
+   a ``cpu_`` prefix, and can be disabled with ``GMRES_BENCH_CPU=0``.
+    The hook prints machine-parseable ``[gmresbench]`` / ``[gmrescase]`` lines.
 4. The harness parses those lines and writes one combined CSV row per
    ``(example, refine level)``, plus a ``status.csv`` summarising which
    examples were swept, skipped, or stopped and why.
@@ -64,12 +63,14 @@ PER_RUN_TIMEOUT_S    wall-clock cap per subprocess    (default 1800)
 DOF_CAP              stop climbing once ndofs reaches this ceiling (default 5,000,000)
 SPSOLVE_CAP_S        stop climbing once CPU spsolve alone exceeds this (default 300)
 GMRES_CASE_TIMEOUT_S per-preconditioner solve budget  (default 60, passed on)
+GMRES_CPU_CASE_TIMEOUT_S CPU per-preconditioner solve budget (default 100, passed on)
+GMRES_BENCH_CPU      also time SciPy GMRES on the host (default 1)
 GMRES_MAXITER        GMRES iteration cap               (default 5000, passed on)
 GMRES_RESTART        GMRES restart length (empty = cupyx default), passed on
 GMRES_BLOCK_SIZE     block size for block-Jacobi      (default 8, passed on)
 GMRES_POLY_DEGREE    Neumann polynomial degree        (default 3, passed on)
 TOLERANCE            GMRES relative tolerance         (default 1e-5, passed on)
-EXAMPLES              comma-separated override, e.g. "1,2,4" (default: all GMRES-only)
+EXAMPLES              comma-separated override, e.g. "1,2,4" (default: GMRES column)
 """
 
 from __future__ import annotations
@@ -91,7 +92,9 @@ RESULTS_CSV = OUTPUT_DIR / "results.csv"
 STATUS_CSV = OUTPUT_DIR / "status.csv"
 RUN_LOGS_DIR = OUTPUT_DIR / "run_logs"
 
-CASES = ("none", "jacobi", "ilu0", "block_jacobi", "polynomial")
+GPU_CASES = ("none", "jacobi", "ilu0", "block_jacobi", "polynomial")
+CPU_CASES = ("cpu_none", "cpu_jacobi", "cpu_block_jacobi", "cpu_polynomial")
+CASES = GPU_CASES + CPU_CASES if os.getenv("GMRES_BENCH_CPU", "1") == "1" else GPU_CASES
 
 START_LEVEL = int(os.getenv("START_LEVEL", "1"))
 MAX_LEVEL = int(os.getenv("MAX_LEVEL", "100"))
@@ -103,6 +106,8 @@ SPSOLVE_CAP_S = float(os.getenv("SPSOLVE_CAP_S", "300"))
 # read by skfem.utils at solve time; SKIP_VISUALISATION avoids GUI/file output.
 FORWARDED_DEFAULTS = {
     "GMRES_CASE_TIMEOUT_S": os.getenv("GMRES_CASE_TIMEOUT_S", "60"),
+    "GMRES_CPU_CASE_TIMEOUT_S": os.getenv("GMRES_CPU_CASE_TIMEOUT_S", "100"),
+    "GMRES_BENCH_CPU": os.getenv("GMRES_BENCH_CPU", "1"),
     "GMRES_MAXITER": os.getenv("GMRES_MAXITER", "5000"),
     "GMRES_RESTART": os.getenv("GMRES_RESTART", ""),
     "GMRES_BLOCK_SIZE": os.getenv("GMRES_BLOCK_SIZE", "8"),
@@ -114,14 +119,11 @@ _OOM_RE = re.compile(r"OutOfMemoryError|out of memory|CUDA_ERROR_OUT_OF_MEMORY",
                      re.IGNORECASE)
 
 
-def gmres_only_examples() -> list[int]:
-    """Return exercise numbers marked GMRES-compatible and not CG-compatible."""
+def gmres_compatible_examples() -> list[int]:
     numbers: list[int] = []
     with SUITABILITY_CSV.open(newline="") as fh:
         for row in csv.DictReader(fh):
-            is_gmres = (row.get("GMRES") or "").strip().upper() == "X"
-            is_cg = (row.get("CG") or "").strip().upper() == "X"
-            if is_gmres and not is_cg:
+            if (row.get("GMRES") or "").strip().upper() == "X":
                 numbers.append(int(row["exercise"]))
     return numbers
 
@@ -168,7 +170,7 @@ def run_one(
 
     try:
         proc = subprocess.run(
-            [sys.executable, str(example_file)],
+            [sys.executable, "-m", f"docs.examples.ex{example:02d}"],
             env=env,
             capture_output=True,
             text=True,
@@ -260,9 +262,9 @@ def main() -> None:
     if override:
         examples = [int(x) for x in override.split(",") if x.strip()]
     else:
-        examples = gmres_only_examples()
+        examples = gmres_compatible_examples()
 
-    print(f"GMRES-only examples ({len(examples)}): {examples}", flush=True)
+    print(f"GMRES-compatible examples ({len(examples)}): {examples}", flush=True)
     print(f"levels {START_LEVEL}..{MAX_LEVEL}, per-run timeout "
           f"{PER_RUN_TIMEOUT_S:g}s, dof_cap={DOF_CAP:,}, "
           f"spsolve_cap={SPSOLVE_CAP_S:g}s, forwarded={FORWARDED_DEFAULTS}",

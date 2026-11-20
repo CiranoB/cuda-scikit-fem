@@ -1,9 +1,11 @@
 from unittest import TestCase
 
 import numpy as np
+import pytest
 import scipy.sparse
 from numpy.testing import assert_almost_equal
 
+import skfem.utils as utils
 from skfem.assembly import CellBasis, Basis, LinearForm, asm, BilinearForm
 from skfem.element import ElementTriP1, ElementQuad1, ElementTriP2
 from skfem.mesh import MeshTri, MeshQuad
@@ -72,6 +74,69 @@ def test_simple_cg_solver():
     x0 = A0.solve(f, D=D)
 
     assert_almost_equal(x0, x1)
+
+
+@pytest.mark.parametrize("half_precision", [False, True])
+@pytest.mark.parametrize("budget,maxiter,restart,expected_status", [
+    (5., 100, 4, "converged"),
+    (-1., 100, 4, "timeout"),
+    (5., 1, 1, "maxiter"),
+])
+def test_gmres_cpu_benchmark(monkeypatch, capsys, half_precision, budget,
+                             maxiter, restart, expected_status):
+    monkeypatch.setattr(utils, "HALF_PRECISION", half_precision)
+    monkeypatch.setenv("GMRES_BLOCK_SIZE", "3")
+    monkeypatch.setenv("GMRES_POLY_DEGREE", "2")
+    matrix = scipy.sparse.diags(
+        [-np.ones(11), 4. * np.ones(12), .5 * np.ones(11)],
+        [-1, 0, 1], format="csr")
+    rhs = np.arange(1., 13.)
+    reference = utils.spl.spsolve(matrix, rhs)
+    solver = utils.spl.gmres
+    calls = []
+
+    def tracked_solver(matrix_arg, rhs_arg, **kwargs):
+        calls.append((matrix_arg.dtype, rhs_arg.dtype, kwargs))
+        return solver(matrix_arg, rhs_arg, **kwargs)
+
+    monkeypatch.setattr(utils.spl, "gmres", tracked_solver)
+    utils._run_gmres_cpu_cases(matrix, rhs, reference, 1e-5, maxiter,
+                               restart, budget, set())
+    lines = capsys.readouterr().out.splitlines()
+    assert len(lines) == len(calls) == 4
+    dtype = np.float32 if half_precision else np.float64
+    for matrix_dtype, rhs_dtype, kwargs in calls:
+        assert matrix_dtype == rhs_dtype == dtype
+        assert kwargs["maxiter"] == (maxiter + restart - 1) // restart
+        assert kwargs["callback_type"] == "x"
+    for case, line in zip(utils._GMRES_CPU_BENCH_CASES, lines):
+        assert f"case=cpu_{case} status={expected_status}" in line
+        fields = dict(token.split("=", 1) for token in line.split()[1:])
+        assert float(fields["readback_s"]) == 0.
+        assert float(fields["total_s"]) >= 0.
+        if expected_status == "converged":
+            assert float(fields["relres"]) < 2e-5
+
+
+def test_gmres_cpu_benchmark_disabled_and_error(monkeypatch, capsys):
+    matrix = scipy.sparse.diags([2., 3., 4.], format="csr")
+    rhs = np.ones(3)
+    reference = utils.spl.spsolve(matrix, rhs)
+    make_preconditioner = utils._make_gmres_preconditioner_cpu
+
+    def fail_jacobi(case, matrix_arg):
+        if case == "jacobi":
+            raise RuntimeError("preconditioner failed")
+        return make_preconditioner(case, matrix_arg)
+
+    monkeypatch.setattr(utils, "_make_gmres_preconditioner_cpu", fail_jacobi)
+    utils._run_gmres_cpu_cases(matrix, rhs, reference, 1e-5, 100, None,
+                               5., {"cpu_none"})
+    output = capsys.readouterr().out
+    assert "case=cpu_none status=skipped" in output
+    assert "case=cpu_jacobi status=error error=RuntimeError" in output
+    assert "case=cpu_block_jacobi status=converged" in output
+    assert "case=cpu_polynomial status=converged" in output
 
 
 def test_mpc_periodic():

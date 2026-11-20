@@ -569,6 +569,93 @@ def _make_gmres_preconditioner(case: str, A_gpu):
     raise ValueError(f"unknown GMRES benchmark case: {case}")
 
 
+_GMRES_CPU_BENCH_CASES = ("none", "jacobi", "block_jacobi", "polynomial")
+
+
+def _gmres_cpu_bench_enabled() -> bool:
+    return os.getenv("GMRES_BENCH_CPU", "0").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
+
+
+def _make_gmres_preconditioner_cpu(case: str, A_cpu):
+    if case == "none":
+        return None
+    if case == "jacobi":
+        return get_jacobi_preconditioner_cpu(A_cpu)
+    if case == "block_jacobi":
+        return get_block_jacobi_preconditioner_cpu(
+            A_cpu, block_size=int(os.getenv("GMRES_BLOCK_SIZE", "8")))
+    if case == "polynomial":
+        return get_polynomial_preconditioner_cpu(
+            A_cpu, degree=int(os.getenv("GMRES_POLY_DEGREE", "3")))
+    raise ValueError(f"unknown GMRES CPU benchmark case: {case}")
+
+
+def _run_gmres_cpu_cases(matrix, rhs, x_cpu, tol, maxiter, restart, budget,
+                         disabled_cases):
+    """Use SciPy's left-preconditioned GMRES; CuPy uses right preconditioning.
+
+    Convert CuPy's inner-iteration cap to SciPy restart cycles.  Both solvers
+    may complete the final restart cycle beyond that cap.
+    """
+    dtype = np.float32 if HALF_PRECISION else np.float64
+    A_c = sp.csr_matrix(matrix, dtype=dtype)
+    b_c = np.asarray(rhs, dtype=dtype)
+    bnorm = float(np.linalg.norm(rhs)) or 1.0
+    restart = min(restart if restart is not None else 20, A_c.shape[0])
+    max_cycles = (maxiter + restart - 1) // restart
+
+    for case in _GMRES_CPU_BENCH_CASES:
+        name = f"cpu_{case}"
+        if name in disabled_cases:
+            print(f"[gmrescase] case={name} status=skipped", flush=True)
+            continue
+        try:
+            t0 = time.perf_counter()
+            preconditioner = _make_gmres_preconditioner_cpu(case, A_c)
+            precond_s = time.perf_counter() - t0
+
+            state = {"iters": 0, "last_x": None, "start": 0.0}
+
+            def _cb(xk, _s=state):
+                _s["iters"] += 1
+                _s["last_x"] = xk.copy()
+                if time.perf_counter() - _s["start"] > budget:
+                    raise _GMRESBudgetExceeded()
+
+            status = "converged"
+            state["start"] = time.perf_counter()
+            t0 = state["start"]
+            try:
+                x_np, info = spl.gmres(
+                    A_c, b_c, rtol=tol, maxiter=max_cycles, restart=restart,
+                    M=preconditioner, callback=_cb, callback_type="x")
+                if info != 0:
+                    status = "maxiter"
+            except _GMRESBudgetExceeded:
+                x_np = state["last_x"]
+                status = "timeout"
+            solve_s = time.perf_counter() - t0
+
+            if x_np is None:
+                x_np = np.zeros_like(b_c)
+            x_np = np.asarray(x_np, dtype=np.float64)
+            diff = np.abs(x_np - x_cpu)
+            relres = float(np.linalg.norm(matrix @ x_np - rhs) / bnorm)
+            print(f"[gmrescase] case={name} status={status} "
+                  f"precond_s={precond_s:.6f} solve_s={solve_s:.6f} "
+                  f"readback_s=0.000000 total_s={precond_s + solve_s:.6f} "
+                  f"converged={int(status == 'converged')} "
+                  f"iters={state['iters']} "
+                  f"relres={relres:.3e} max_abs_diff={diff.max():.3e} "
+                  f"mean_abs_diff={diff.mean():.3e}", flush=True)
+            del preconditioner
+        except Exception as exc:
+            print(f"[gmrescase] case={name} status=error "
+                  f"error={type(exc).__name__}", flush=True)
+
+
 def run_gmres_preconditioner_benchmark(A, b, x_cpu, spsolve_cpu_s=-1.0):
     """Benchmark GPU GMRES with several preconditioners against CPU spsolve.
 
@@ -582,9 +669,9 @@ def run_gmres_preconditioner_benchmark(A, b, x_cpu, spsolve_cpu_s=-1.0):
     difference from the CPU reference on machine-parseable ``[gmrescase]``
     lines.  Only the first eligible solve per process is measured.
 
-    GMRES only invokes ``callback`` on every restart cycle (not every inner
-    iteration), so the reported ``iters`` counts restarts, not the total
-    number of matrix-vector products.
+    CPU counterparts are included when ``GMRES_BENCH_CPU`` is enabled.
+    The reported ``iters`` counts solution callbacks at restart boundaries,
+    not inner iterations.  CuPy also calls back for the initial iterate.
     """
     global _gmres_bench_done
     if _gmres_bench_done or not _gmres_bench_enabled():
@@ -684,6 +771,11 @@ def run_gmres_preconditioner_benchmark(A, b, x_cpu, spsolve_cpu_s=-1.0):
     finally:
         del A_gpu, b_gpu
         cp.get_default_memory_pool().free_all_blocks()
+
+    if _gmres_cpu_bench_enabled():
+        cpu_budget = float(os.getenv("GMRES_CPU_CASE_TIMEOUT_S", str(budget)))
+        _run_gmres_cpu_cases(A, b, x_cpu, tol, maxiter, restart, cpu_budget,
+                             disabled_cases)
 
 
 def solver_direct_scipy(**kwargs):

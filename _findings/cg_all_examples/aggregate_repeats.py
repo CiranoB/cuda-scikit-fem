@@ -5,7 +5,7 @@ Usage: python aggregate_repeats.py <results_dir>
 ``<results_dir>`` must contain ``run_*/results.csv``.  Only ``(example,
 refined)`` pairs present in every run are aggregated.  Writes
 ``<results_dir>/aggregate.csv`` and prints the largest common level per
-example.
+example.  Metrics with fewer than two samples are omitted.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ def main() -> None:
         sys.exit(f"no run_*/results.csv under {root}")
 
     common = sorted(set.intersection(*(set(r) for r in runs)))
-    metrics = [c for c in next(iter(runs[0].values())) if c == "spsolve_cpu_s"
+    metrics = [c for c in next(iter(runs[0].values()), {}) if c == "spsolve_cpu_s"
                or c == "transfer_s" or c.endswith("_total_s")]
 
     out_rows = []
@@ -56,7 +56,10 @@ def main() -> None:
 
     out = root / "aggregate.csv"
     with out.open("w", newline="") as fh:
-        writer = csv.DictWriter(fh, fieldnames=list(out_rows[0]))
+        writer = csv.DictWriter(fh, fieldnames=[
+            "example", "refined", "ndofs", "metric", "n", "mean_s", "std_s",
+            "cv_pct",
+        ])
         writer.writeheader()
         writer.writerows(out_rows)
 
@@ -71,9 +74,9 @@ def main() -> None:
                  for r in out_rows
                  if r["example"] == ex and r["refined"] == lvl
                  and r["metric"] != "transfer_s"]
-        ndofs = next((r["ndofs"] for r in out_rows
-                      if r["example"] == ex and r["refined"] == lvl), "?")
-        print(f"ex{ex:02d} L{lvl} ndofs={ndofs}: " + " ".join(parts))
+        ndofs = runs[0][ex, lvl]["ndofs"]
+        print(f"ex{ex:02d} L{lvl} ndofs={ndofs}: "
+              + (" ".join(parts) or "fewer than two timing samples"))
     print(f"\nFull table: {out}")
 
 
