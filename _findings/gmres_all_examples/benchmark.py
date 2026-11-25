@@ -64,7 +64,7 @@ MAX_LEVEL            last INCREASE_REFINE_MESH value  (default 100)
 PER_RUN_TIMEOUT_S    wall-clock cap per subprocess    (default 1800)
 DOF_CAP              stop climbing once ndofs reaches this ceiling (default 5,000,000)
 SPSOLVE_CAP_S        stop climbing once CPU spsolve alone exceeds this (default 300)
-GMRES_CASE_TIMEOUT_S per-preconditioner solve budget  (default 60, passed on)
+GMRES_CASE_TIMEOUT_S per-preconditioner solve budget  (default 30, passed on)
 GMRES_CPU_CASE_TIMEOUT_S CPU per-preconditioner solve budget (default 100, passed on)
 GMRES_BENCH_CPU      also time SciPy GMRES on the host (default 1)
 GMRES_MAXITER        GMRES iteration cap               (default 5000, passed on)
@@ -107,7 +107,7 @@ SPSOLVE_CAP_S = float(os.getenv("SPSOLVE_CAP_S", "300"))
 # Environment forwarded to every example subprocess.  The benchmark knobs are
 # read by skfem.utils at solve time; SKIP_VISUALISATION avoids GUI/file output.
 FORWARDED_DEFAULTS = {
-    "GMRES_CASE_TIMEOUT_S": os.getenv("GMRES_CASE_TIMEOUT_S", "60"),
+    "GMRES_CASE_TIMEOUT_S": os.getenv("GMRES_CASE_TIMEOUT_S", "30"),
     "GMRES_CPU_CASE_TIMEOUT_S": os.getenv("GMRES_CPU_CASE_TIMEOUT_S", "100"),
     "GMRES_BENCH_CPU": os.getenv("GMRES_BENCH_CPU", "1"),
     "GMRES_MAXITER": os.getenv("GMRES_MAXITER", "5000"),
