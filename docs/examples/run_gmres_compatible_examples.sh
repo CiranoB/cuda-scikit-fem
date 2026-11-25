@@ -24,11 +24,15 @@ fi
 
 mkdir -p "${RESULTS_DIR}"
 
-# Each refinement is isolated by benchmark.py and may run for at most 1000 s.
-export PER_RUN_TIMEOUT_S=${PER_RUN_TIMEOUT_S:-1000}
+# Each refinement is isolated by benchmark.py and may run for at most 3600 s.
+export PER_RUN_TIMEOUT_S=${PER_RUN_TIMEOUT_S:-3600}
 export HALF_PRECISION=${HALF_PRECISION:-0}
+# Per-preconditioner GPU solve budget; PER_RUN_TIMEOUT_S must exceed 5 cases x this + CPU cases + spsolve.
+export GMRES_CASE_TIMEOUT_S=${GMRES_CASE_TIMEOUT_S:-500}
 # Large enough that the per-case time budget, not the iteration cap, ends a run.
 export GMRES_MAXITER=${GMRES_MAXITER:-100000}
+# Restart 20 stagnates on ex04/ex18/ex34; they only converged at 100.
+export GMRES_RESTART=${GMRES_RESTART:-100}
 
 {
     printf 'started_at=%s\n' "$(date --iso-8601=seconds)"
